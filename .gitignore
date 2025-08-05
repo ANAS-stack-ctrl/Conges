@@ -1,0 +1,22 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.vsp
+*.db
+*.cache
+*.sdf
+*.log
+
+# Build folders
+bin/
+obj/
+
+# Node/React
+node_modules/
+dist/
+.env
+
+# Système
+.DS_Store
+Thumbs.db
