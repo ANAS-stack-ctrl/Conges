@@ -2,9 +2,9 @@
 using CongesApi.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using System.Linq;
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CongesApi.Controllers
 {
@@ -19,7 +19,7 @@ namespace CongesApi.Controllers
             _context = context;
         }
 
-        // ✅ NOUVELLE ROUTE : GET /api/LeaveRequest/leave-types
+        // ✅ GET: Tous les types de congés (pour preuve obligatoire ou non)
         [HttpGet("leave-types")]
         public async Task<IActionResult> GetLeaveTypes()
         {
@@ -35,7 +35,7 @@ namespace CongesApi.Controllers
             return Ok(types);
         }
 
-        // GET: api/LeaveRequest
+        // ✅ GET: Toutes les demandes
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -48,7 +48,7 @@ namespace CongesApi.Controllers
             return Ok(leaveRequests);
         }
 
-        // GET: api/LeaveRequest/5
+        // ✅ GET: Demande par ID
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -64,20 +64,20 @@ namespace CongesApi.Controllers
             return Ok(leaveRequest);
         }
 
-        // ✅ POST: api/LeaveRequest
+        // ✅ POST: Créer une demande de congé
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] LeaveRequest leaveRequest)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Vérifie que le type de congé existe
+            // Vérifie que le type de congé est valide
             var leaveType = await _context.LeaveTypes.FindAsync(leaveRequest.LeaveTypeId);
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
 
-            // Vérifie que le champ "proof" est requis si nécessaire
-            if (leaveType.RequiresProof && string.IsNullOrWhiteSpace(leaveRequest.ProofPath))
+            // Vérifie la présence d’un justificatif si requis
+            if (leaveType.RequiresProof && string.IsNullOrWhiteSpace(leaveRequest.EmployeeSignaturePath))
                 return BadRequest("Un justificatif est requis pour ce type de congé.");
 
             _context.LeaveRequests.Add(leaveRequest);
@@ -86,7 +86,7 @@ namespace CongesApi.Controllers
             return CreatedAtAction(nameof(Get), new { id = leaveRequest.LeaveRequestId }, leaveRequest);
         }
 
-        // PUT: api/LeaveRequest/5
+        // ✅ PUT: Mettre à jour une demande existante
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, LeaveRequest leaveRequest)
         {
@@ -110,7 +110,7 @@ namespace CongesApi.Controllers
             return NoContent();
         }
 
-        // DELETE: api/LeaveRequest/5
+        // ✅ DELETE: Supprimer une demande
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -124,14 +124,12 @@ namespace CongesApi.Controllers
             return NoContent();
         }
 
-        // GET: api/LeaveRequest/working-days?startDate=2025-08-01&endDate=2025-08-12
+        // ✅ GET: Calcul des jours ouvrables
         [HttpGet("working-days")]
         public IActionResult GetWorkingDays(DateTime startDate, DateTime endDate)
         {
             if (startDate > endDate)
-            {
                 return BadRequest("La date de début ne peut pas être après la date de fin.");
-            }
 
             var holidays = _context.Holidays
                 .Where(h => h.Date >= startDate && h.Date <= endDate)

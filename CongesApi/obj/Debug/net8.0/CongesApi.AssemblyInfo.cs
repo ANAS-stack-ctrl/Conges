@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bd88abe99d6147aad5216c82b4de15d42b02cb82")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ebfcaa32863b2fdcd7a271c3d1063b21da3640d5")]
 [assembly: System.Reflection.AssemblyProductAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
