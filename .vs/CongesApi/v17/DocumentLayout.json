@@ -1,0 +1,592 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Asus\\source\\repos\\CongesApi\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuthController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\AuthController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Data\\ApplicationDbContext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Data\\ApplicationDbContext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\RegisterRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\DTOs\\RegisterRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\DTOs\\LoginResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\DTOs\\LoginRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\CongesApi.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\CongesApi.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\PasswordHasher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\PasswordHasher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuditLogController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\AuditLogController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\User.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\User.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\UserRole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\UserRole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\UserController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\UserController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Properties\\launchSettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Properties\\launchSettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Services\\AuthService.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Services\\AuthService.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\NotificationController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\NotificationController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Holiday.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\Holiday.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Notification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\Notification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Document.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\Document.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveBalanceAdjustment.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\LeaveBalanceAdjustment.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeavePolicy.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\LeavePolicy.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveType.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\LeaveType.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\LeaveRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\HolidayController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\HolidayController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\DocumentController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\DocumentController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeavePolicyController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\LeavePolicyController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\ApprovalController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\ApprovalController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveTypeController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\LeaveTypeController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveRequestController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Controllers\\LeaveRequestController.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\AuditLog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\AuditLog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Approval.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\Approval.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalFlowType.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\ApprovalFlowType.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalLevel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:CongesApi\\Model\\ApprovalLevel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 4,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "RegisterRequest.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\RegisterRequest.cs",
+              "RelativeDocumentMoniker": "CongesApi\\DTOs\\RegisterRequest.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\RegisterRequest.cs",
+              "RelativeToolTip": "CongesApi\\DTOs\\RegisterRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-29T09:47:53.553Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "launchSettings.json",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Properties\\launchSettings.json",
+              "RelativeDocumentMoniker": "CongesApi\\Properties\\launchSettings.json",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Properties\\launchSettings.json",
+              "RelativeToolTip": "CongesApi\\Properties\\launchSettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-07-28T13:04:29.918Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Program.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Program.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Program.cs",
+              "RelativeToolTip": "CongesApi\\Program.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAcwDEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T12:22:12.63Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "PasswordHasher.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\PasswordHasher.cs",
+              "RelativeDocumentMoniker": "CongesApi\\PasswordHasher.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\PasswordHasher.cs",
+              "RelativeToolTip": "CongesApi\\PasswordHasher.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T12:21:38.411Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "AuthService.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Services\\AuthService.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Services\\AuthService.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Services\\AuthService.cs",
+              "RelativeToolTip": "CongesApi\\Services\\AuthService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T12:09:31.075Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "NotificationController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\NotificationController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\NotificationController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\NotificationController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\NotificationController.cs",
+              "ViewState": "AgIAAC4AAAAAAAAAAAAYwFoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T11:27:42.496Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "Holiday.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Holiday.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\Holiday.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Holiday.cs",
+              "RelativeToolTip": "CongesApi\\Model\\Holiday.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:59:28.22Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "Notification.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Notification.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\Notification.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Notification.cs",
+              "RelativeToolTip": "CongesApi\\Model\\Notification.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:59:19.068Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "Document.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Document.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\Document.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Document.cs",
+              "RelativeToolTip": "CongesApi\\Model\\Document.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:59:11.085Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "UserRole.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\UserRole.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\UserRole.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\UserRole.cs",
+              "RelativeToolTip": "CongesApi\\Model\\UserRole.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:58:21.431Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "LeaveBalanceAdjustment.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveBalanceAdjustment.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\LeaveBalanceAdjustment.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveBalanceAdjustment.cs",
+              "RelativeToolTip": "CongesApi\\Model\\LeaveBalanceAdjustment.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:57:55.575Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "LeavePolicy.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeavePolicy.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\LeavePolicy.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeavePolicy.cs",
+              "RelativeToolTip": "CongesApi\\Model\\LeavePolicy.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:57:46.736Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "User.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\User.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\User.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\User.cs",
+              "RelativeToolTip": "CongesApi\\Model\\User.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:57:14.285Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "LeaveType.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveType.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\LeaveType.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveType.cs",
+              "RelativeToolTip": "CongesApi\\Model\\LeaveType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:49:21.3Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "LeaveRequest.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveRequest.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\LeaveRequest.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\LeaveRequest.cs",
+              "RelativeToolTip": "CongesApi\\Model\\LeaveRequest.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAA8wB8AAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:43:02.342Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "AuthController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuthController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\AuthController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuthController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\AuthController.cs",
+              "ViewState": "AgIAADsAAAAAAAAAAAAYwFcAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:12:57Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "LoginResponse.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginResponse.cs",
+              "RelativeDocumentMoniker": "CongesApi\\DTOs\\LoginResponse.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginResponse.cs",
+              "RelativeToolTip": "CongesApi\\DTOs\\LoginResponse.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:12:13.768Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "LoginRequest.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginRequest.cs",
+              "RelativeDocumentMoniker": "CongesApi\\DTOs\\LoginRequest.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\DTOs\\LoginRequest.cs",
+              "RelativeToolTip": "CongesApi\\DTOs\\LoginRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T10:11:44.721Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "HolidayController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\HolidayController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\HolidayController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\HolidayController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\HolidayController.cs",
+              "ViewState": "AgIAACgAAAAAAAAAAAAYwFQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:42:57.572Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "LeaveBalanceAdjustmentController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\LeaveBalanceAdjustmentController.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAYwFwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:42:29.627Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "DocumentController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\DocumentController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\DocumentController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\DocumentController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\DocumentController.cs",
+              "ViewState": "AgIAAC4AAAAAAAAAAAA1wFoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:42:07.027Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "AuditLogController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuditLogController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\AuditLogController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\AuditLogController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\AuditLogController.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAAswDwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:33:11.659Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "LeavePolicyController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeavePolicyController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\LeavePolicyController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeavePolicyController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\LeavePolicyController.cs",
+              "ViewState": "AgIAACgAAAAAAAAAAAAYwFQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:14:43.664Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "ApprovalController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\ApprovalController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\ApprovalController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\ApprovalController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\ApprovalController.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAYwEIAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:09:20.912Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "LeaveTypeController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveTypeController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\LeaveTypeController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveTypeController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\LeaveTypeController.cs",
+              "ViewState": "AgIAAC8AAAAAAAAAAAAYwFsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:08:56.054Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "LeaveRequestController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveRequestController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\LeaveRequestController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\LeaveRequestController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\LeaveRequestController.cs",
+              "ViewState": "AgIAADMAAAAAAAAAAAAYwF8AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:08:31.793Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "UserController.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\UserController.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Controllers\\UserController.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Controllers\\UserController.cs",
+              "RelativeToolTip": "CongesApi\\Controllers\\UserController.cs",
+              "ViewState": "AgIAADMAAAAAAAAAAAAAADQAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T15:08:00.44Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\appsettings.json",
+              "RelativeDocumentMoniker": "CongesApi\\appsettings.json",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\appsettings.json",
+              "RelativeToolTip": "CongesApi\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-07-21T12:36:48.102Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ApplicationDbContext.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Data\\ApplicationDbContext.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Data\\ApplicationDbContext.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Data\\ApplicationDbContext.cs",
+              "RelativeToolTip": "CongesApi\\Data\\ApplicationDbContext.cs",
+              "ViewState": "AgIAAG4AAAAAAAAAAAAIwIoAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T12:36:26.886Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "AuditLog.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\AuditLog.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\AuditLog.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\AuditLog.cs",
+              "RelativeToolTip": "CongesApi\\Model\\AuditLog.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T12:10:41.467Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "Approval.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Approval.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\Approval.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\Approval.cs",
+              "RelativeToolTip": "CongesApi\\Model\\Approval.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T12:09:00.966Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "ApprovalFlowType.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalFlowType.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\ApprovalFlowType.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalFlowType.cs",
+              "RelativeToolTip": "CongesApi\\Model\\ApprovalFlowType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T12:02:37.805Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "ApprovalLevel.cs",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalLevel.cs",
+              "RelativeDocumentMoniker": "CongesApi\\Model\\ApprovalLevel.cs",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\Model\\ApprovalLevel.cs",
+              "RelativeToolTip": "CongesApi\\Model\\ApprovalLevel.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-21T12:01:37.888Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "CongesApi.csproj",
+              "DocumentMoniker": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\CongesApi.csproj",
+              "RelativeDocumentMoniker": "CongesApi\\CongesApi.csproj",
+              "ToolTip": "C:\\Users\\Asus\\source\\repos\\CongesApi\\CongesApi\\CongesApi.csproj",
+              "RelativeToolTip": "CongesApi\\CongesApi.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-07-21T11:54:17.537Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
