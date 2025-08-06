@@ -53,12 +53,15 @@ namespace CongesApi.Controllers
             if (!passwordOk)
                 return Unauthorized("Email ou mot de passe incorrect.");
 
+            // ✅ Réponse complète avec UserId
             var response = new LoginResponse
             {
+                UserId = user.UserId,  // ✅ ici on utilise bien le bon nom de propriété
                 FullName = $"{user.FirstName} {user.LastName}",
                 Role = user.Role,
                 Token = "dummy-token-temporaire"
             };
+
 
             return Ok(response);
         }

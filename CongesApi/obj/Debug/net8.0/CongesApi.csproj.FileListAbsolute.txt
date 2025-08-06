@@ -169,3 +169,4 @@ C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\CongesApi.pdb
 C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\CongesApi.genruntimeconfig.cache
 C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\ref\CongesApi.dll
 C:\Users\Asus\source\repos\CongesApi\CongesApi\bin\Debug\net8.0\BCrypt.Net-Next.dll
+C:\Users\Asus\source\repos\CongesApi\CongesApi\bin\Debug\net8.0\CongesApi.staticwebassets.runtime.json

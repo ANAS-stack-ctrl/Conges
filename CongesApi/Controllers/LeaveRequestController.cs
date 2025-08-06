@@ -1,10 +1,14 @@
 ﻿using CongesApi.Data;
 using CongesApi.Model;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using CongesApi.DTOs;
 
 namespace CongesApi.Controllers
 {
@@ -13,13 +17,15 @@ namespace CongesApi.Controllers
     public class LeaveRequestController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public LeaveRequestController(ApplicationDbContext context)
+        public LeaveRequestController(ApplicationDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
-        // ✅ GET: Tous les types de congés (pour preuve obligatoire ou non)
+        // GET: api/LeaveRequest/leave-types
         [HttpGet("leave-types")]
         public async Task<IActionResult> GetLeaveTypes()
         {
@@ -35,7 +41,7 @@ namespace CongesApi.Controllers
             return Ok(types);
         }
 
-        // ✅ GET: Toutes les demandes
+        // GET: api/LeaveRequest
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -48,7 +54,7 @@ namespace CongesApi.Controllers
             return Ok(leaveRequests);
         }
 
-        // ✅ GET: Demande par ID
+        // GET: api/LeaveRequest/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -64,21 +70,73 @@ namespace CongesApi.Controllers
             return Ok(leaveRequest);
         }
 
-        // ✅ POST: Créer une demande de congé
+        // POST: api/LeaveRequest
+       
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] LeaveRequest leaveRequest)
+        public async Task<IActionResult> Create([FromForm] LeaveRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // Vérifie que le type de congé est valide
-            var leaveType = await _context.LeaveTypes.FindAsync(leaveRequest.LeaveTypeId);
+            var leaveType = await _context.LeaveTypes.FindAsync(dto.LeaveTypeId);
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
 
-            // Vérifie la présence d’un justificatif si requis
-            if (leaveType.RequiresProof && string.IsNullOrWhiteSpace(leaveRequest.EmployeeSignaturePath))
-                return BadRequest("Un justificatif est requis pour ce type de congé.");
+            string proofFilePath = null;
+            if (leaveType.RequiresProof)
+            {
+                if (dto.ProofFile == null)
+                    return BadRequest("Un justificatif est requis pour ce type de congé.");
+
+                var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
+                if (!Directory.Exists(uploadsDir))
+                    Directory.CreateDirectory(uploadsDir);
+
+                var fileName = Guid.NewGuid() + Path.GetExtension(dto.ProofFile.FileName);
+                var filePath = Path.Combine(uploadsDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await dto.ProofFile.CopyToAsync(stream);
+                }
+
+                proofFilePath = $"/uploads/{fileName}";
+            }
+
+            // Sauvegarde de la signature
+            string signaturePath = null;
+            if (!string.IsNullOrWhiteSpace(dto.EmployeeSignatureBase64))
+            {
+                var imageData = dto.EmployeeSignatureBase64.Split(',')[1];
+                var bytes = Convert.FromBase64String(imageData);
+                var signatureFileName = Guid.NewGuid() + ".png";
+                var signatureFullPath = Path.Combine(_env.WebRootPath, "signatures");
+                if (!Directory.Exists(signatureFullPath))
+                    Directory.CreateDirectory(signatureFullPath);
+
+                var finalPath = Path.Combine(signatureFullPath, signatureFileName);
+                await System.IO.File.WriteAllBytesAsync(finalPath, bytes);
+                signaturePath = $"/signatures/{signatureFileName}";
+            }
+
+            var leaveRequest = new LeaveRequest
+            {
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                RequestedDays = dto.RequestedDays,
+                ActualDays = dto.RequestedDays,
+                Status = "En attente",
+                EmployeeComments = dto.EmployeeComments,
+                EmployeeSignaturePath = signaturePath,
+                SignatureDate = DateTime.Now,
+                CreatedAt = DateTime.Now,
+                CreatedBy = dto.UserId,
+                LeaveTypeId = dto.LeaveTypeId,
+                UserId = dto.UserId,
+                PrivateNotes = "",
+                CurrentStage = "Initial",
+                CancellationReason = null,
+                IsHalfDay = dto.IsHalfDay,  // ✅ virgule et pas point-virgule
+                HalfDayPeriod = dto.HalfDayPeriod ?? "FULL"
+            };
+
 
             _context.LeaveRequests.Add(leaveRequest);
             await _context.SaveChangesAsync();
@@ -86,7 +144,8 @@ namespace CongesApi.Controllers
             return CreatedAtAction(nameof(Get), new { id = leaveRequest.LeaveRequestId }, leaveRequest);
         }
 
-        // ✅ PUT: Mettre à jour une demande existante
+
+        // PUT: api/LeaveRequest/5
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, LeaveRequest leaveRequest)
         {
@@ -110,7 +169,7 @@ namespace CongesApi.Controllers
             return NoContent();
         }
 
-        // ✅ DELETE: Supprimer une demande
+        // DELETE: api/LeaveRequest/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -124,7 +183,7 @@ namespace CongesApi.Controllers
             return NoContent();
         }
 
-        // ✅ GET: Calcul des jours ouvrables
+        // GET: api/LeaveRequest/working-days
         [HttpGet("working-days")]
         public IActionResult GetWorkingDays(DateTime startDate, DateTime endDate)
         {
@@ -137,12 +196,9 @@ namespace CongesApi.Controllers
                 .ToList();
 
             int workingDays = 0;
-
             for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
-                if (date.DayOfWeek != DayOfWeek.Saturday &&
-                    date.DayOfWeek != DayOfWeek.Sunday &&
-                    !holidays.Contains(date))
+                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday && !holidays.Contains(date))
                 {
                     workingDays++;
                 }

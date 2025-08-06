@@ -35,6 +35,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+builder.WebHost.UseWebRoot("wwwroot");
 // Redirection vers HTTPS
 app.UseHttpsRedirection();
 

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CongesApi.Model
 {
@@ -18,8 +20,12 @@ namespace CongesApi.Model
         public string EmployeeSignaturePath { get; set; }
         public DateTime? SignatureDate { get; set; }
         public string CurrentStage { get; set; }
-        public bool IsHalfDay { get; set; }
-        public string HalfDayPeriod { get; set; }
+
+        public bool IsHalfDay { get; set; } = false;
+
+        [Required]
+        public string HalfDayPeriod { get; set; } = "FULL"; // valeur par défaut
+
         public DateTime CreatedAt { get; set; }
         public int CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -33,6 +39,7 @@ namespace CongesApi.Model
 
         public int UserId { get; set; }
         public User User { get; set; }
+
         public ICollection<Approval> Approvals { get; set; } = new List<Approval>();
     }
 }
