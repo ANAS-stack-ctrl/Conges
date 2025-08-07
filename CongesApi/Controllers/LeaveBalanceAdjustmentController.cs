@@ -2,6 +2,7 @@
 using CongesApi.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CongesApi.Controllers
@@ -16,6 +17,19 @@ namespace CongesApi.Controllers
         {
             _context = context;
         }
+
+        // ✅ Nouveau endpoint : solde actuel pour un utilisateur
+        // ✅ Récupère le solde directement depuis la table Users
+        [HttpGet("user/{userId}/current-balance")]
+        public async Task<IActionResult> GetCurrentBalance(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Utilisateur introuvable" });
+
+            return Ok(new { balance = user.CurrentLeaveBalance });
+        }
+
 
         // GET: api/LeaveBalanceAdjustment
         [HttpGet]
