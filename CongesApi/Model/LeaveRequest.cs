@@ -20,6 +20,7 @@ namespace CongesApi.Model
         public string EmployeeSignaturePath { get; set; }
         public DateTime? SignatureDate { get; set; }
         public string CurrentStage { get; set; }
+        public string? ProofFilePath { get; set; }
 
         public bool IsHalfDay { get; set; } = false;
 

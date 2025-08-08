@@ -24,6 +24,26 @@ namespace CongesApi.Controllers
             _env = env;
         }
 
+        // ─────────────────────────────
+        // Helpers
+        // ─────────────────────────────
+        private static string SanitizeFileName(string name)
+        {
+            foreach (var c in Path.GetInvalidFileNameChars())
+                name = name.Replace(c, '_');
+            return name.Trim().Replace(" ", "_");
+        }
+
+        private string EnsureWebRoot()
+        {
+            var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                : _env.WebRootPath;
+
+            if (!Directory.Exists(webRoot)) Directory.CreateDirectory(webRoot);
+            return webRoot;
+        }
+
         // GET: api/LeaveRequest/leave-types
         [HttpGet("leave-types")]
         public async Task<IActionResult> GetLeaveTypes()
@@ -79,9 +99,6 @@ namespace CongesApi.Controllers
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
 
-            // ✅ Vérification du solde disponible dans la table LeaveBalance (par type de congé)
-            // NB: la table SQL s'appelle "LeaveBalance" (singulier) et est mappée via .ToTable("LeaveBalance") dans ApplicationDbContext
-            // 🔍 Vérification du solde de congé disponible (table LeaveBalance)
             var userBalance = await _context.LeaveBalances
                 .Where(lb => lb.UserId == dto.UserId && lb.LeaveTypeId == dto.LeaveTypeId)
                 .Select(lb => (decimal?)lb.CurrentBalance)
@@ -90,55 +107,52 @@ namespace CongesApi.Controllers
             if (userBalance < dto.RequestedDays)
                 return BadRequest("Solde de congé insuffisant pour cette demande.");
 
-
-            // 📎 Téléversement du justificatif si requis
+            // ─────────────────────────────
+            // 1) Gestion du justificatif
+            // ─────────────────────────────
+            if (leaveType.RequiresProof && dto.ProofFile == null)
+                return BadRequest("Un justificatif est requis pour ce type de congé.");
 
             string proofFilePath = null;
-            if (leaveType.RequiresProof)
+            if (dto.ProofFile != null && dto.ProofFile.Length > 0)
             {
-                if (dto.ProofFile == null)
-                    return BadRequest("Un justificatif est requis pour ce type de congé.");
-
-                // S'assure que wwwroot existe
-                var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
-                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
-                    : _env.WebRootPath;
-
+                var webRoot = EnsureWebRoot();
                 var uploadsDir = Path.Combine(webRoot, "uploads");
-                if (!Directory.Exists(uploadsDir))
-                    Directory.CreateDirectory(uploadsDir);
+                if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
 
-                var fileName = Guid.NewGuid() + Path.GetExtension(dto.ProofFile.FileName);
-                var filePath = Path.Combine(uploadsDir, fileName);
+                var ext = Path.GetExtension(dto.ProofFile.FileName);
+                var originalName = SanitizeFileName(Path.GetFileNameWithoutExtension(dto.ProofFile.FileName));
+                var proofFileName = $"{originalName}_{DateTime.Now:yyyyMMdd_HHmmss}{ext}";
+                var proofPhysicalPath = Path.Combine(uploadsDir, proofFileName);
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
+                using (var stream = new FileStream(proofPhysicalPath, FileMode.Create))
                     await dto.ProofFile.CopyToAsync(stream);
-                }
 
-                proofFilePath = $"/uploads/{fileName}";
+                proofFilePath = $"/uploads/{proofFileName}";
             }
 
-            // ✒️ Sauvegarde de la signature (si fournie)
+            // ─────────────────────────────
+            // 2) Sauvegarde de la signature
+            // ─────────────────────────────
             string signaturePath = null;
             if (!string.IsNullOrWhiteSpace(dto.EmployeeSignatureBase64))
             {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == dto.UserId);
+                var first = user?.FirstName ?? "User";
+                var last = user?.LastName ?? dto.UserId.ToString();
+
+                var baseName = $"{SanitizeFileName(last)}_{SanitizeFileName(first)}_{DateTime.Now:yyyyMMdd_HHmmss}";
+                var webRoot = EnsureWebRoot();
+                var signaturesDir = Path.Combine(webRoot, "signatures");
+                if (!Directory.Exists(signaturesDir)) Directory.CreateDirectory(signaturesDir);
+
                 var parts = dto.EmployeeSignatureBase64.Split(',');
                 var base64 = parts.Length > 1 ? parts[1] : parts[0];
-
                 var bytes = Convert.FromBase64String(base64);
 
-                var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
-                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
-                    : _env.WebRootPath;
-
-                var signaturesDir = Path.Combine(webRoot, "signatures");
-                if (!Directory.Exists(signaturesDir))
-                    Directory.CreateDirectory(signaturesDir);
-
-                var signatureFileName = Guid.NewGuid() + ".png";
-                var finalPath = Path.Combine(signaturesDir, signatureFileName);
-                await System.IO.File.WriteAllBytesAsync(finalPath, bytes);
+                var signatureFileName = $"{baseName}.png";
+                var signaturePhysicalPath = Path.Combine(signaturesDir, signatureFileName);
+                await System.IO.File.WriteAllBytesAsync(signaturePhysicalPath, bytes);
 
                 signaturePath = $"/signatures/{signatureFileName}";
             }
@@ -152,6 +166,7 @@ namespace CongesApi.Controllers
                 Status = "En attente",
                 EmployeeComments = dto.EmployeeComments,
                 EmployeeSignaturePath = signaturePath,
+                // Pas de ProofFilePath car non présent dans le modèle
                 SignatureDate = DateTime.Now,
                 CreatedAt = DateTime.Now,
                 CreatedBy = dto.UserId,
@@ -166,8 +181,6 @@ namespace CongesApi.Controllers
 
             _context.LeaveRequests.Add(leaveRequest);
             await _context.SaveChangesAsync();
-
-            // (Optionnel) tu pourras plus tard décrémenter le solde LeaveBalance quand la demande est approuvée.
 
             return Ok(new { message = "Demande envoyée avec succès", id = leaveRequest.LeaveRequestId });
         }
