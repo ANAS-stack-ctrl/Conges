@@ -99,12 +99,20 @@ namespace CongesApi.Controllers
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
 
-            var userBalance = await _context.LeaveBalances
-                .Where(lb => lb.UserId == dto.UserId && lb.LeaveTypeId == dto.LeaveTypeId)
-                .Select(lb => (decimal?)lb.CurrentBalance)
-                .FirstOrDefaultAsync() ?? 0m;
+            // ─────────────────────────────
+            // Vérification stricte du solde
+            // ─────────────────────────────
+            var lb = await _context.LeaveBalances
+                .SingleOrDefaultAsync(x => x.UserId == dto.UserId && x.LeaveTypeId == dto.LeaveTypeId);
 
-            if (userBalance < dto.RequestedDays)
+            if (lb == null)
+                return BadRequest("Aucun solde défini pour ce type de congé. Contactez les RH.");
+
+            decimal requestedDays = dto.IsHalfDay
+                ? (dto.RequestedDays > 0 ? 0.5m : 0m)
+                : (decimal)dto.RequestedDays;
+
+            if (lb.CurrentBalance < requestedDays)
                 return BadRequest("Solde de congé insuffisant pour cette demande.");
 
             // ─────────────────────────────
@@ -166,7 +174,6 @@ namespace CongesApi.Controllers
                 Status = "En attente",
                 EmployeeComments = dto.EmployeeComments,
                 EmployeeSignaturePath = signaturePath,
-                // Pas de ProofFilePath car non présent dans le modèle
                 SignatureDate = DateTime.Now,
                 CreatedAt = DateTime.Now,
                 CreatedBy = dto.UserId,

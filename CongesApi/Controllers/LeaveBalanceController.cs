@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CongesApi.Model;      // Pour LeaveBalance, LeaveType
-using CongesApi.Data;       // Pour ApplicationDbContext
+using CongesApi.Data;
+using CongesApi.DTOs;
+using CongesApi.Model;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace CongesApi.Controllers
 {
@@ -13,50 +13,97 @@ namespace CongesApi.Controllers
     public class LeaveBalanceController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        public LeaveBalanceController(ApplicationDbContext context) => _context = context;
 
-        public LeaveBalanceController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // 🔹 GET: api/LeaveBalance/18
-        [HttpGet("{userId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetLeaveBalances(int userId)
+        // GET: api/LeaveBalance/user/18
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetLeaveBalances(int userId)
         {
             var balances = await _context.LeaveBalances
                 .Include(lb => lb.LeaveType)
                 .Where(lb => lb.UserId == userId)
                 .Select(lb => new
                 {
-                    LeaveType = lb.LeaveType.Name, // 🔧 Corrigé ici
+                    lb.Id,
+                    lb.UserId,
+                    lb.LeaveTypeId,
+                    LeaveType = lb.LeaveType.Name,
                     Balance = lb.CurrentBalance
                 })
                 .ToListAsync();
 
-            if (!balances.Any())
-            {
+            if (balances.Count == 0)
                 return NotFound("Aucun solde trouvé pour cet utilisateur.");
-            }
 
             return Ok(balances);
         }
 
-        // 🔹 POST: api/LeaveBalance
-        [HttpPost]
-        public async Task<IActionResult> AddLeaveBalance([FromBody] LeaveBalance newBalance)
+        // POST: api/LeaveBalance/set   → apply same balance to ALL leave types
+        [HttpPost("set")]
+        public async Task<IActionResult> SetLeaveBalanceForAll([FromBody] SetAllLeaveBalancesDto dto)
         {
-            var exists = await _context.LeaveBalances
-                .AnyAsync(lb => lb.UserId == newBalance.UserId && lb.LeaveTypeId == newBalance.LeaveTypeId);
+            var userExists = await _context.Users.AnyAsync(u => u.UserId == dto.UserId);
+            if (!userExists) return BadRequest("Utilisateur invalide.");
 
-            if (exists)
+            var leaveTypes = await _context.LeaveTypes.Select(t => t.LeaveTypeId).ToListAsync();
+
+            foreach (var typeId in leaveTypes)
             {
-                return Conflict("Un solde existe déjà pour ce type de congé.");
+                var existing = await _context.LeaveBalances
+                    .SingleOrDefaultAsync(lb => lb.UserId == dto.UserId && lb.LeaveTypeId == typeId);
+
+                if (existing == null)
+                {
+                    _context.LeaveBalances.Add(new LeaveBalance
+                    {
+                        UserId = dto.UserId,
+                        LeaveTypeId = typeId,
+                        CurrentBalance = dto.CurrentBalance
+                    });
+                }
+                else
+                {
+                    existing.CurrentBalance = dto.CurrentBalance;
+                }
             }
 
-            _context.LeaveBalances.Add(newBalance);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetLeaveBalances), new { userId = newBalance.UserId }, newBalance);
+            return Ok(new
+            {
+                message = $"Solde {dto.CurrentBalance} appliqué à tous les types pour l'utilisateur {dto.UserId}."
+            });
+        }
+
+        // POST: api/LeaveBalance/set-one  → set balance for ONE type
+        [HttpPost("set-one")]
+        public async Task<IActionResult> SetLeaveBalanceOne([FromBody] SetLeaveBalanceDto dto)
+        {
+            var userExists = await _context.Users.AnyAsync(u => u.UserId == dto.UserId);
+            if (!userExists) return BadRequest("Utilisateur invalide.");
+
+            var typeExists = await _context.LeaveTypes.AnyAsync(t => t.LeaveTypeId == dto.LeaveTypeId);
+            if (!typeExists) return BadRequest("Type de congé invalide.");
+
+            var lb = await _context.LeaveBalances
+                .SingleOrDefaultAsync(x => x.UserId == dto.UserId && x.LeaveTypeId == dto.LeaveTypeId);
+
+            if (lb == null)
+            {
+                _context.LeaveBalances.Add(new LeaveBalance
+                {
+                    UserId = dto.UserId,
+                    LeaveTypeId = dto.LeaveTypeId,
+                    CurrentBalance = dto.Balance
+                });
+            }
+            else
+            {
+                lb.CurrentBalance = dto.Balance;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Solde mis à jour." });
         }
     }
 }
