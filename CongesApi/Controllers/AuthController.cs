@@ -92,7 +92,7 @@ namespace CongesApi.Controllers
                 NationalID = request.NationalID,
                 PasswordHash = hashedPassword,
                 IsActive = true,
-                CurrentLeaveBalance = 0m,
+               
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = request.CreatedBy,
             };

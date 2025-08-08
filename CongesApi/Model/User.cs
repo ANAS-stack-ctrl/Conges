@@ -21,7 +21,7 @@ namespace CongesApi.Model
         // Propriété de navigation vers UserRole
         public UserRole UserRole { get; set; }
 
-        public decimal CurrentLeaveBalance { get; set; }
+      
         public int? DelegateApprovalToId { get; set; }
         public string PasswordHash { get; set; }
         public bool IsActive { get; set; }
@@ -32,6 +32,7 @@ namespace CongesApi.Model
         public int? UpdatedBy { get; set; }
         public DateTime? DeletedAt { get; set; }
         public int? DeletedBy { get; set; }
+        public ICollection<LeaveBalance> LeaveBalances { get; set; }
 
         public ICollection<LeaveRequest> LeaveRequests { get; set; }
         public ICollection<Notification> Notifications { get; set; }

@@ -19,15 +19,15 @@ namespace CongesApi.Controllers
         }
 
         // ✅ Nouveau endpoint : solde actuel pour un utilisateur
-        // ✅ Récupère le solde directement depuis la table Users
+        // ✅ Récupère le solde depuis la table LeaveBalance (somme des soldes)
         [HttpGet("user/{userId}/current-balance")]
         public async Task<IActionResult> GetCurrentBalance(int userId)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-                return NotFound(new { message = "Utilisateur introuvable" });
+            var totalBalance = await _context.LeaveBalances
+                .Where(lb => lb.UserId == userId)
+                .SumAsync(lb => (decimal?)lb.CurrentBalance) ?? 0m;
 
-            return Ok(new { balance = user.CurrentLeaveBalance });
+            return Ok(new { balance = totalBalance });
         }
 
 

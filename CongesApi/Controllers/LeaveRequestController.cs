@@ -1,14 +1,13 @@
 ﻿using CongesApi.Data;
+using CongesApi.DTOs;
 using CongesApi.Model;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using CongesApi.DTOs;
 
 namespace CongesApi.Controllers
 {
@@ -71,13 +70,28 @@ namespace CongesApi.Controllers
         }
 
         // POST: api/LeaveRequest
-       
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] LeaveRequestDto dto)
         {
+            Console.WriteLine($"[DEBUG DTO] UserId={dto.UserId}, LeaveTypeId={dto.LeaveTypeId}, RequestedDays={dto.RequestedDays}");
+
             var leaveType = await _context.LeaveTypes.FindAsync(dto.LeaveTypeId);
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
+
+            // ✅ Vérification du solde disponible dans la table LeaveBalance (par type de congé)
+            // NB: la table SQL s'appelle "LeaveBalance" (singulier) et est mappée via .ToTable("LeaveBalance") dans ApplicationDbContext
+            // 🔍 Vérification du solde de congé disponible (table LeaveBalance)
+            var userBalance = await _context.LeaveBalances
+                .Where(lb => lb.UserId == dto.UserId && lb.LeaveTypeId == dto.LeaveTypeId)
+                .Select(lb => (decimal?)lb.CurrentBalance)
+                .FirstOrDefaultAsync() ?? 0m;
+
+            if (userBalance < dto.RequestedDays)
+                return BadRequest("Solde de congé insuffisant pour cette demande.");
+
+
+            // 📎 Téléversement du justificatif si requis
 
             string proofFilePath = null;
             if (leaveType.RequiresProof)
@@ -85,7 +99,12 @@ namespace CongesApi.Controllers
                 if (dto.ProofFile == null)
                     return BadRequest("Un justificatif est requis pour ce type de congé.");
 
-                var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
+                // S'assure que wwwroot existe
+                var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                    : _env.WebRootPath;
+
+                var uploadsDir = Path.Combine(webRoot, "uploads");
                 if (!Directory.Exists(uploadsDir))
                     Directory.CreateDirectory(uploadsDir);
 
@@ -100,19 +119,27 @@ namespace CongesApi.Controllers
                 proofFilePath = $"/uploads/{fileName}";
             }
 
-            // Sauvegarde de la signature
+            // ✒️ Sauvegarde de la signature (si fournie)
             string signaturePath = null;
             if (!string.IsNullOrWhiteSpace(dto.EmployeeSignatureBase64))
             {
-                var imageData = dto.EmployeeSignatureBase64.Split(',')[1];
-                var bytes = Convert.FromBase64String(imageData);
-                var signatureFileName = Guid.NewGuid() + ".png";
-                var signatureFullPath = Path.Combine(_env.WebRootPath, "signatures");
-                if (!Directory.Exists(signatureFullPath))
-                    Directory.CreateDirectory(signatureFullPath);
+                var parts = dto.EmployeeSignatureBase64.Split(',');
+                var base64 = parts.Length > 1 ? parts[1] : parts[0];
 
-                var finalPath = Path.Combine(signatureFullPath, signatureFileName);
+                var bytes = Convert.FromBase64String(base64);
+
+                var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+                    : _env.WebRootPath;
+
+                var signaturesDir = Path.Combine(webRoot, "signatures");
+                if (!Directory.Exists(signaturesDir))
+                    Directory.CreateDirectory(signaturesDir);
+
+                var signatureFileName = Guid.NewGuid() + ".png";
+                var finalPath = Path.Combine(signaturesDir, signatureFileName);
                 await System.IO.File.WriteAllBytesAsync(finalPath, bytes);
+
                 signaturePath = $"/signatures/{signatureFileName}";
             }
 
@@ -133,17 +160,17 @@ namespace CongesApi.Controllers
                 PrivateNotes = "",
                 CurrentStage = "Initial",
                 CancellationReason = null,
-                IsHalfDay = dto.IsHalfDay,  // ✅ virgule et pas point-virgule
+                IsHalfDay = dto.IsHalfDay,
                 HalfDayPeriod = dto.HalfDayPeriod ?? "FULL"
             };
-
 
             _context.LeaveRequests.Add(leaveRequest);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Get), new { id = leaveRequest.LeaveRequestId }, leaveRequest);
-        }
+            // (Optionnel) tu pourras plus tard décrémenter le solde LeaveBalance quand la demande est approuvée.
 
+            return Ok(new { message = "Demande envoyée avec succès", id = leaveRequest.LeaveRequestId });
+        }
 
         // PUT: api/LeaveRequest/5
         [HttpPut("{id}")]
@@ -198,13 +225,44 @@ namespace CongesApi.Controllers
             int workingDays = 0;
             for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
-                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday && !holidays.Contains(date))
+                if (date.DayOfWeek != DayOfWeek.Saturday &&
+                    date.DayOfWeek != DayOfWeek.Sunday &&
+                    !holidays.Contains(date))
                 {
                     workingDays++;
                 }
             }
 
             return Ok(new { workingDays });
+        }
+
+        // GET: api/LeaveRequest/user/{userId}
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetRequestsByUser(int userId)
+        {
+            var requests = await _context.LeaveRequests
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.StartDate)
+                .Select(r => new
+                {
+                    r.LeaveRequestId,
+                    r.StartDate,
+                    r.EndDate,
+                    r.RequestedDays,
+                    r.Status,
+                    r.EmployeeComments,
+                    r.EmployeeSignaturePath,
+                    r.SignatureDate,
+                    r.CreatedAt,
+                    LeaveType = new
+                    {
+                        r.LeaveType.LeaveTypeId,
+                        r.LeaveType.Name
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(requests);
         }
     }
 }

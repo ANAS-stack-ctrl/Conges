@@ -1,7 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using CongesApi.Model;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CongesApi.Data
 {
@@ -23,6 +21,7 @@ namespace CongesApi.Data
         public DbSet<Holiday> Holidays { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<LeaveBalance> LeaveBalances { get; set; }
 
         // Lookup Tables (ENUM simulés)
         public DbSet<UserRole> UserRoles { get; set; }
@@ -57,7 +56,12 @@ namespace CongesApi.Data
                 .HasForeignKey(u => u.Role)
                 .HasPrincipalKey(r => r.Role);
 
-            // Relations LeaveType → ApprovalFlowType et LeavePolicy
+            // LeaveType → ApprovalFlowType et LeavePolicy
+            modelBuilder.Entity<LeaveType>()
+        .ToTable("LeaveType")                 // 👈 correspond au nom réel de la table
+        .HasKey(lt => lt.LeaveTypeId);        // 👈 clé primaire
+
+            // Relations déjà présentes (tu peux les garder)
             modelBuilder.Entity<LeaveType>()
                 .HasOne(t => t.ApprovalFlowType)
                 .WithMany()
@@ -69,7 +73,7 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(t => t.PolicyId);
 
-            // Relations LeaveRequest → User et LeaveType
+            // LeaveRequest → User et LeaveType
             modelBuilder.Entity<LeaveRequest>()
                 .HasOne(r => r.User)
                 .WithMany(u => u.LeaveRequests)
@@ -80,7 +84,7 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(r => r.LeaveTypeId);
 
-            // Relation Approval → User (ApprovedBy)
+            // Approval → User (ApprovedBy)
             modelBuilder.Entity<Approval>()
                 .HasOne(a => a.User)
                 .WithMany()
@@ -92,6 +96,7 @@ namespace CongesApi.Data
                 .WithMany(lr => lr.Approvals)
                 .HasForeignKey(a => a.LeaveRequestId);
 
+            // Document → User et LeaveRequest
             modelBuilder.Entity<Document>()
                 .HasOne(d => d.UploadedBy)
                 .WithMany()
@@ -103,11 +108,13 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(d => d.LeaveRequestId);
 
+            // Notification → User
             modelBuilder.Entity<Notification>()
                 .HasOne(n => n.User)
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId);
 
+            // LeaveBalanceAdjustment → User et LeaveRequest
             modelBuilder.Entity<LeaveBalanceAdjustment>()
                 .HasOne(l => l.User)
                 .WithMany()
@@ -119,12 +126,14 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(l => l.LeaveRequestId);
 
+            // AuditLog → User
             modelBuilder.Entity<AuditLog>()
                 .HasOne(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // 💰 Configuration des décimales avec précision (évite les erreurs/tronquements SQL)
             modelBuilder.Entity<LeaveBalanceAdjustment>()
                 .Property(p => p.NewBalance)
                 .HasPrecision(18, 2);
@@ -133,11 +142,12 @@ namespace CongesApi.Data
                 .Property(p => p.OldBalance)
                 .HasPrecision(18, 2);
 
-            modelBuilder.Entity<User>()
-                .Property(p => p.CurrentLeaveBalance)
-                .HasPrecision(18, 2);
-        }
 
-        // ❌ Supprimé : plus de hash automatique ici !
+
+            modelBuilder.Entity<LeaveBalance>()
+            .ToTable("LeaveBalance") // Nom exact de la table SQL
+            .Property(p => p.CurrentBalance)
+            .HasPrecision(18, 2);
+        }
     }
 }

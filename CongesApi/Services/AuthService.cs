@@ -28,7 +28,7 @@ namespace CongesApi.Services
                 IsActive = true,
                 CreatedAt = DateTime.Now,
                 CreatedBy = 1,
-                CurrentLeaveBalance = 0
+               
             };
 
             _context.Users.Add(user);
