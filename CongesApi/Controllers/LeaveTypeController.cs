@@ -2,6 +2,7 @@
 using CongesApi.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CongesApi.Controllers
@@ -11,81 +12,171 @@ namespace CongesApi.Controllers
     public class LeaveTypeController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        public LeaveTypeController(ApplicationDbContext context) => _context = context;
 
-        public LeaveTypeController(ApplicationDbContext context)
+        // ─────────────────────────────────────────────────────────────
+        // DTOs
+        // ─────────────────────────────────────────────────────────────
+        public class UpsertLeaveTypeDto
         {
-            _context = context;
+            public string Name { get; set; }
+            public bool RequiresProof { get; set; }
+            public int ConsecutiveDays { get; set; }      // 0 = illimité
+            public string ApprovalFlow { get; set; }      // clé vers ApprovalFlowType.FlowType
+            public int PolicyId { get; set; }             // FK vers LeavePolicy
         }
 
-        // GET: api/LeaveType
+        // ─────────────────────────────────────────────────────────────
+        // GET: api/LeaveType  (projection légère pour l’UI admin)
+        // ─────────────────────────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var leaveTypes = await _context.LeaveTypes
-                .Include(lt => lt.ApprovalFlowType)
-                .Include(lt => lt.Policy)
+            var items = await _context.LeaveTypes
+                // Include supprimés : projection = pas besoin de charger les entités
+                .Select(t => new
+                {
+                    t.LeaveTypeId,
+                    t.Name,
+                    t.RequiresProof,
+                    t.ConsecutiveDays,
+                    t.ApprovalFlow,
+                    Policy = t.Policy == null ? null : new
+                    {
+                        t.Policy.PolicyId,
+                        // cast en types nullables pour éviter "Nullable object must have a value"
+                        AllowHalfDay = (bool?)t.Policy.AllowHalfDay,
+                        MaxConsecutiveDays = (int?)t.Policy.MaxConsecutiveDays,
+                        MaxDurationDays = (int?)t.Policy.MaxDurationDays
+                    }
+                })
                 .ToListAsync();
-            return Ok(leaveTypes);
+
+            return Ok(items);
         }
 
-        // GET: api/LeaveType/5
+        // ─────────────────────────────────────────────────────────────
+        // GET: api/LeaveType/{id}
+        // ─────────────────────────────────────────────────────────────
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var leaveType = await _context.LeaveTypes
-                .Include(lt => lt.ApprovalFlowType)
-                .Include(lt => lt.Policy)
-                .FirstOrDefaultAsync(lt => lt.LeaveTypeId == id);
+            var item = await _context.LeaveTypes
+                // Include supprimés : projection = pas besoin
+                .Where(t => t.LeaveTypeId == id)
+                .Select(t => new
+                {
+                    t.LeaveTypeId,
+                    t.Name,
+                    t.RequiresProof,
+                    t.ConsecutiveDays,
+                    t.ApprovalFlow,
+                    Policy = t.Policy == null ? null : new
+                    {
+                        t.Policy.PolicyId,
+                        AllowHalfDay = (bool?)t.Policy.AllowHalfDay,
+                        MinNoticeDays = (int?)t.Policy.MinNoticeDays,
+                        BlackoutPeriods = t.Policy.BlackoutPeriods,
+                        MaxDurationDays = (int?)t.Policy.MaxDurationDays,
+                        MaxConsecutiveDays = (int?)t.Policy.MaxConsecutiveDays,
+                        RequiresProof = (bool?)t.Policy.RequiresProof,
+                        ProofMaxDelay = (int?)t.Policy.ProofMaxDelay,
+                        RequiresHRApproval = (bool?)t.Policy.RequiresHRApproval,
+                        RequiresManagerApproval = (bool?)t.Policy.RequiresManagerApproval,
+                        RequiresDirectorApproval = (bool?)t.Policy.RequiresDirectorApproval,
+                        IsPaid = (bool?)t.Policy.IsPaid
+                    }
+                })
+                .FirstOrDefaultAsync();
 
-            if (leaveType == null) return NotFound();
-
-            return Ok(leaveType);
+            if (item == null) return NotFound();
+            return Ok(item);
         }
 
-        // POST: api/LeaveType
+        // ─────────────────────────────────────────────────────────────
+        // POST: api/LeaveType   (création)
+        // ─────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> Create(LeaveType leaveType)
+        public async Task<IActionResult> Create([FromBody] UpsertLeaveTypeDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            _context.LeaveTypes.Add(leaveType);
+            // Nom unique (insensible à la casse)
+            var nameExists = await _context.LeaveTypes
+                .AnyAsync(t => t.Name.ToLower() == dto.Name.Trim().ToLower());
+            if (nameExists) return BadRequest("Un type de congé avec ce nom existe déjà.");
+
+            // FK valides
+            var policyExists = await _context.LeavePolicies.AnyAsync(p => p.PolicyId == dto.PolicyId);
+            if (!policyExists) return BadRequest("PolicyId invalide.");
+
+            var flowExists = await _context.ApprovalFlowTypes.AnyAsync(f => f.FlowType == dto.ApprovalFlow);
+            if (!flowExists) return BadRequest("ApprovalFlow invalide.");
+
+            var entity = new LeaveType
+            {
+                Name = dto.Name?.Trim(),
+                RequiresProof = dto.RequiresProof,
+                ConsecutiveDays = dto.ConsecutiveDays < 0 ? 0 : dto.ConsecutiveDays,
+                ApprovalFlow = dto.ApprovalFlow,
+                PolicyId = dto.PolicyId
+            };
+
+            _context.LeaveTypes.Add(entity);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Get), new { id = leaveType.LeaveTypeId }, leaveType);
+            return Ok(new { message = "Type de congé créé", id = entity.LeaveTypeId });
         }
 
-        // PUT: api/LeaveType/5
+        // ─────────────────────────────────────────────────────────────
+        // PUT: api/LeaveType/{id}  (mise à jour)
+        // ─────────────────────────────────────────────────────────────
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, LeaveType leaveType)
+        public async Task<IActionResult> Update(int id, [FromBody] UpsertLeaveTypeDto dto)
         {
-            if (id != leaveType.LeaveTypeId) return BadRequest("ID mismatch");
+            var entity = await _context.LeaveTypes.FindAsync(id);
+            if (entity == null) return NotFound();
 
-            _context.Entry(leaveType).State = EntityState.Modified;
+            // nom unique (hors lui-même)
+            var nameExists = await _context.LeaveTypes
+                .AnyAsync(t => t.LeaveTypeId != id && t.Name.ToLower() == dto.Name.Trim().ToLower());
+            if (nameExists) return BadRequest("Un type de congé avec ce nom existe déjà.");
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.LeaveTypes.Any(lt => lt.LeaveTypeId == id)) return NotFound();
-                else throw;
-            }
+            var policyExists = await _context.LeavePolicies.AnyAsync(p => p.PolicyId == dto.PolicyId);
+            if (!policyExists) return BadRequest("PolicyId invalide.");
 
-            return NoContent();
+            var flowExists = await _context.ApprovalFlowTypes.AnyAsync(f => f.FlowType == dto.ApprovalFlow);
+            if (!flowExists) return BadRequest("ApprovalFlow invalide.");
+
+            entity.Name = dto.Name?.Trim();
+            entity.RequiresProof = dto.RequiresProof;
+            entity.ConsecutiveDays = dto.ConsecutiveDays < 0 ? 0 : dto.ConsecutiveDays;
+            entity.ApprovalFlow = dto.ApprovalFlow;
+            entity.PolicyId = dto.PolicyId;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Type de congé mis à jour" });
         }
 
-        // DELETE: api/LeaveType/5
+        // ─────────────────────────────────────────────────────────────
+        // DELETE: api/LeaveType/{id}
+        // Empêche la suppression si le type est utilisé
+        // ─────────────────────────────────────────────────────────────
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
-            if (leaveType == null) return NotFound();
+            var entity = await _context.LeaveTypes.FindAsync(id);
+            if (entity == null) return NotFound();
 
-            _context.LeaveTypes.Remove(leaveType);
+            var usedInRequests = await _context.LeaveRequests.AnyAsync(r => r.LeaveTypeId == id);
+            var usedInBalances = await _context.LeaveBalances.AnyAsync(b => b.LeaveTypeId == id);
+            if (usedInRequests || usedInBalances)
+                return BadRequest("Impossible de supprimer ce type : il est déjà utilisé par des demandes ou des soldes.");
+
+            _context.LeaveTypes.Remove(entity);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Type de congé supprimé" });
         }
     }
 }

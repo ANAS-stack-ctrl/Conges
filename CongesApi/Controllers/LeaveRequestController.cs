@@ -53,7 +53,8 @@ namespace CongesApi.Controllers
                 {
                     t.LeaveTypeId,
                     t.Name,
-                    t.RequiresProof
+                    t.RequiresProof,
+                    t.ConsecutiveDays
                 })
                 .ToListAsync();
 
@@ -98,6 +99,15 @@ namespace CongesApi.Controllers
             var leaveType = await _context.LeaveTypes.FindAsync(dto.LeaveTypeId);
             if (leaveType == null)
                 return BadRequest("Type de congé invalide.");
+            decimal requested = dto.IsHalfDay ? 0.5m : (decimal)dto.RequestedDays;
+
+            if (leaveType.ConsecutiveDays > 0 && requested > leaveType.ConsecutiveDays)
+            {
+                return BadRequest(
+                    $"Le type de congé '{leaveType.Name}' autorise au maximum {leaveType.ConsecutiveDays} " +
+                    $"jour(s) consécutif(s). Vous avez demandé {requested} jour(s).");
+            }
+
 
             // ─────────────────────────────
             // Vérification stricte du solde
