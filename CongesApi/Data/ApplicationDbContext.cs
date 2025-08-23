@@ -6,24 +6,25 @@ namespace CongesApi.Data
     public class ApplicationDbContext : DbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
+            : base(options) { }
 
+        // ───────────────────────────────────
         // Tables principales
+        // ───────────────────────────────────
         public DbSet<User> Users { get; set; }
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
         public DbSet<LeaveType> LeaveTypes { get; set; }
         public DbSet<LeavePolicy> LeavePolicies { get; set; }
         public DbSet<Approval> Approvals { get; set; }
         public DbSet<Document> Documents { get; set; }
+        public DbSet<LeaveBalance> LeaveBalances { get; set; }
         public DbSet<LeaveBalanceAdjustment> LeaveBalanceAdjustments { get; set; }
+        public DbSet<LeaveBalanceMovement> LeaveBalanceMovements { get; set; }
         public DbSet<Holiday> Holidays { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
-        public DbSet<LeaveBalance> LeaveBalances { get; set; }
-
-        // Lookup Tables (ENUM simulés)
+        public DbSet<BlackoutPeriod> BlackoutPeriods { get; set; }
+        // Lookup / enums simulés
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<ApprovalLevel> ApprovalLevels { get; set; }
         public DbSet<LeaveStatus> LeaveStatuses { get; set; }
@@ -36,32 +37,39 @@ namespace CongesApi.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // ───────────────────────────────────
             // Lookup tables – clés primaires explicites
-            modelBuilder.Entity<ApprovalFlowType>().HasKey(a => a.FlowType);
+            // ───────────────────────────────────
             modelBuilder.Entity<UserRole>().HasKey(r => r.Role);
             modelBuilder.Entity<ApprovalLevel>().HasKey(l => l.Level);
             modelBuilder.Entity<LeaveStatus>().HasKey(s => s.Status);
+            modelBuilder.Entity<ApprovalFlowType>().HasKey(a => a.FlowType);
             modelBuilder.Entity<NotificationType>().HasKey(n => n.Type);
             modelBuilder.Entity<HalfDayPeriodType>().HasKey(p => p.PeriodType);
             modelBuilder.Entity<DocumentCategory>().HasKey(d => d.Category);
 
-            // Clés explicites
+            // ───────────────────────────────────
+            // Entités avec clés explicites
+            // ───────────────────────────────────
             modelBuilder.Entity<AuditLog>().HasKey(a => a.LogId);
             modelBuilder.Entity<LeaveBalanceAdjustment>().HasKey(a => a.AdjustmentId);
 
-            // Relation User -> UserRole
+            // ───────────────────────────────────
+            // User → UserRole
+            // ───────────────────────────────────
             modelBuilder.Entity<User>()
                 .HasOne(u => u.UserRole)
                 .WithMany()
                 .HasForeignKey(u => u.Role)
                 .HasPrincipalKey(r => r.Role);
-
-            // LeaveType → ApprovalFlowType et LeavePolicy
+         
+            // ───────────────────────────────────
+            // LeaveType (nom de table réel + relations)
+            // ───────────────────────────────────
             modelBuilder.Entity<LeaveType>()
-        .ToTable("LeaveType")                 // 👈 correspond au nom réel de la table
-        .HasKey(lt => lt.LeaveTypeId);        // 👈 clé primaire
+                .ToTable("LeaveType")
+                .HasKey(lt => lt.LeaveTypeId);
 
-            // Relations déjà présentes (tu peux les garder)
             modelBuilder.Entity<LeaveType>()
                 .HasOne(t => t.ApprovalFlowType)
                 .WithMany()
@@ -73,7 +81,9 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(t => t.PolicyId);
 
-            // LeaveRequest → User et LeaveType
+            // ───────────────────────────────────
+            // LeaveRequest → User & LeaveType
+            // ───────────────────────────────────
             modelBuilder.Entity<LeaveRequest>()
                 .HasOne(r => r.User)
                 .WithMany(u => u.LeaveRequests)
@@ -84,19 +94,24 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(r => r.LeaveTypeId);
 
-            // Approval → User (ApprovedBy)
-            modelBuilder.Entity<Approval>()
-                .HasOne(a => a.User)
-                .WithMany()
-                .HasForeignKey(a => a.ApprovedBy)
-                .OnDelete(DeleteBehavior.Restrict);
-
+            // ───────────────────────────────────
+            // Approval → LeaveRequest & (ApprovedBy) User
+            // ───────────────────────────────────
             modelBuilder.Entity<Approval>()
                 .HasOne(a => a.LeaveRequest)
                 .WithMany(lr => lr.Approvals)
                 .HasForeignKey(a => a.LeaveRequestId);
 
-            // Document → User et LeaveRequest
+            modelBuilder.Entity<Approval>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.ApprovedBy)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ───────────────────────────────────
+            // Document → User (uploader) & LeaveRequest
+            // ───────────────────────────────────
             modelBuilder.Entity<Document>()
                 .HasOne(d => d.UploadedBy)
                 .WithMany()
@@ -108,13 +123,17 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(d => d.LeaveRequestId);
 
+            // ───────────────────────────────────
             // Notification → User
+            // ───────────────────────────────────
             modelBuilder.Entity<Notification>()
                 .HasOne(n => n.User)
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId);
 
-            // LeaveBalanceAdjustment → User et LeaveRequest
+            // ───────────────────────────────────
+            // LeaveBalanceAdjustment → User & LeaveRequest
+            // ───────────────────────────────────
             modelBuilder.Entity<LeaveBalanceAdjustment>()
                 .HasOne(l => l.User)
                 .WithMany()
@@ -126,14 +145,15 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(l => l.LeaveRequestId);
 
-            // AuditLog → User
-            modelBuilder.Entity<AuditLog>()
-                .HasOne(a => a.User)
-                .WithMany()
-                .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // ───────────────────────────────────
+            // LeaveBalance (nom & précision décimale)
+            // ───────────────────────────────────
+            modelBuilder.Entity<LeaveBalance>()
+                .ToTable("LeaveBalance")
+                .Property(p => p.CurrentBalance)
+                .HasPrecision(18, 2);
 
-            // 💰 Configuration des décimales avec précision (évite les erreurs/tronquements SQL)
+            // Ajustements – précision
             modelBuilder.Entity<LeaveBalanceAdjustment>()
                 .Property(p => p.NewBalance)
                 .HasPrecision(18, 2);
@@ -142,12 +162,58 @@ namespace CongesApi.Data
                 .Property(p => p.OldBalance)
                 .HasPrecision(18, 2);
 
+            modelBuilder.Entity<BlackoutPeriod>()
+           .HasKey(b => b.BlackoutPeriodId);
 
+            modelBuilder.Entity<BlackoutPeriod>()
+                .Property(b => b.ScopeType).HasMaxLength(20);
 
-            modelBuilder.Entity<LeaveBalance>()
-            .ToTable("LeaveBalance") // Nom exact de la table SQL
-            .Property(p => p.CurrentBalance)
-            .HasPrecision(18, 2);
+            modelBuilder.Entity<BlackoutPeriod>()
+                .Property(b => b.EnforceMode).HasMaxLength(20);
+
+            modelBuilder.Entity<BlackoutPeriod>()
+                .HasOne(b => b.LeaveType)
+                .WithMany()
+                .HasForeignKey(b => b.LeaveTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BlackoutPeriod>()
+                .HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // ───────────────────────────────────
+            // LeaveBalanceMovement (journal des débits/crédits)
+            // ───────────────────────────────────
+            modelBuilder.Entity<LeaveBalanceMovement>(e =>
+            {
+                e.ToTable("LeaveBalanceMovements");
+                e.HasKey(m => m.MovementId);
+
+                e.Property(m => m.Quantity).HasPrecision(18, 2);
+                e.Property(m => m.Reason).HasMaxLength(100);
+
+                // FK – on garde les mouvements même si l'utilisateur ou le type est supprimé
+                e.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(m => m.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne<LeaveType>()
+                    .WithMany()
+                    .HasForeignKey(m => m.LeaveTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Pour la traçabilité on préfère Restrict (évite de perdre l'historique)
+                e.HasOne<LeaveRequest>()
+                    .WithMany()
+                    .HasForeignKey(m => m.LeaveRequestId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Index utiles
+                e.HasIndex(m => new { m.UserId, m.LeaveTypeId });
+                e.HasIndex(m => m.LeaveRequestId);
+            });
         }
     }
 }

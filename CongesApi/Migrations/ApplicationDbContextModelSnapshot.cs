@@ -30,10 +30,10 @@ namespace CongesApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ApprovalId"));
 
-                    b.Property<DateTime>("ActionDate")
+                    b.Property<DateTime?>("ActionDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("ApprovedBy")
+                    b.Property<int?>("ApprovedBy")
                         .HasColumnType("int");
 
                     b.Property<string>("Comments")
@@ -110,6 +110,59 @@ namespace CongesApi.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("CongesApi.Model.BlackoutPeriod", b =>
+                {
+                    b.Property<int>("BlackoutPeriodId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BlackoutPeriodId"));
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EnforceMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LeaveTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("BlackoutPeriodId");
+
+                    b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BlackoutPeriods");
                 });
 
             modelBuilder.Entity("CongesApi.Model.Document", b =>
@@ -280,6 +333,46 @@ namespace CongesApi.Migrations
                     b.ToTable("LeaveBalanceAdjustments");
                 });
 
+            modelBuilder.Entity("CongesApi.Model.LeaveBalanceMovement", b =>
+                {
+                    b.Property<int>("MovementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MovementId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("LeaveRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LeaveTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("MovementId");
+
+                    b.HasIndex("LeaveRequestId");
+
+                    b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("UserId", "LeaveTypeId");
+
+                    b.ToTable("LeaveBalanceMovements", (string)null);
+                });
+
             modelBuilder.Entity("CongesApi.Model.LeavePolicy", b =>
                 {
                     b.Property<int>("PolicyId")
@@ -342,7 +435,6 @@ namespace CongesApi.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CancellationReason")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("CancelledBy")
@@ -384,11 +476,13 @@ namespace CongesApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProofFilePath")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RequestedDays")
                         .HasColumnType("int");
+
+                    b.Property<bool>("RequiresDirectorOverride")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("SignatureDate")
                         .HasColumnType("datetime2");
@@ -549,7 +643,6 @@ namespace CongesApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("NationalID")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
@@ -557,7 +650,6 @@ namespace CongesApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Role")
@@ -592,8 +684,7 @@ namespace CongesApi.Migrations
                     b.HasOne("CongesApi.Model.User", "User")
                         .WithMany()
                         .HasForeignKey("ApprovedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CongesApi.Model.LeaveRequest", "LeaveRequest")
                         .WithMany("Approvals")
@@ -611,8 +702,25 @@ namespace CongesApi.Migrations
                     b.HasOne("CongesApi.Model.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CongesApi.Model.BlackoutPeriod", b =>
+                {
+                    b.HasOne("CongesApi.Model.LeaveType", "LeaveType")
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CongesApi.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("LeaveType");
 
                     b.Navigation("User");
                 });
@@ -680,6 +788,27 @@ namespace CongesApi.Migrations
                     b.Navigation("LeaveRequest");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CongesApi.Model.LeaveBalanceMovement", b =>
+                {
+                    b.HasOne("CongesApi.Model.LeaveRequest", null)
+                        .WithMany()
+                        .HasForeignKey("LeaveRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CongesApi.Model.LeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CongesApi.Model.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CongesApi.Model.LeaveRequest", b =>

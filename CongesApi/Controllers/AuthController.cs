@@ -1,10 +1,11 @@
-﻿using CongesApi.DTOs;
+﻿using System;
+using System.Text;
+using System.Threading.Tasks;
+using CongesApi.Data;
+using CongesApi.DTOs;
 using CongesApi.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CongesApi.Data;
-using CongesApi.Services;
-using System.Text;
 
 namespace CongesApi.Controllers
 {
@@ -19,11 +20,13 @@ namespace CongesApi.Controllers
             _context = context;
         }
 
-        // ✅ LOGIN
+        // ------------------------------------------------------
+        // POST: api/Auth/login
+        // ------------------------------------------------------
         [HttpPost("login")]
-        public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
+        public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            if (string.IsNullOrWhiteSpace(request?.Email) || string.IsNullOrWhiteSpace(request?.Password))
                 return BadRequest("Email et mot de passe requis.");
 
             var user = await _context.Users
@@ -35,41 +38,47 @@ namespace CongesApi.Controllers
                 return Unauthorized("Email ou mot de passe incorrect.");
             }
 
-            // Debug : Log toutes les infos
+            // Debug utile
             Console.WriteLine("🔍 Utilisateur trouvé :");
             Console.WriteLine($" - Email DB         : '{user.Email}'");
             Console.WriteLine($" - Password Hash DB : '{user.PasswordHash}'");
             Console.WriteLine($" - Password Entré   : '{request.Password}'");
             Console.WriteLine($" - Password Entré (Bytes) : {BitConverter.ToString(Encoding.UTF8.GetBytes(request.Password))}");
 
-            // Normalisation
+            // Normalisation simple
             string cleanPassword = request.Password.Normalize().Trim();
 
-            // Comparaison
-            bool passwordOk = PasswordHasher.Verify(cleanPassword, user.PasswordHash);
-
+            // ✅ Vérification via BCrypt
+            bool passwordOk = BCrypt.Net.BCrypt.Verify(cleanPassword, user.PasswordHash);
             Console.WriteLine("✅ Mot de passe correct ? " + passwordOk);
 
             if (!passwordOk)
                 return Unauthorized("Email ou mot de passe incorrect.");
 
-            // ✅ Réponse complète avec UserId
+            // ✅ Réponse (avec UserId)
             var response = new LoginResponse
             {
-                UserId = user.UserId,  // ✅ ici on utilise bien le bon nom de propriété
+                UserId = user.UserId,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Role = user.Role,
-                Token = "dummy-token-temporaire"
+                Token = "dummy-token-temporaire" // à remplacer si tu ajoutes du JWT plus tard
             };
-
 
             return Ok(response);
         }
 
-        // ✅ REGISTER
+        // ------------------------------------------------------
+        // POST: api/Auth/register
+        // ------------------------------------------------------
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            if (request == null)
+                return BadRequest("Requête invalide.");
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return BadRequest("L'email est requis.");
+
             if (string.IsNullOrWhiteSpace(request.Password))
                 return BadRequest("Le mot de passe est requis.");
 
@@ -77,24 +86,25 @@ namespace CongesApi.Controllers
             if (exists)
                 return BadRequest("Cet utilisateur existe déjà.");
 
+            // Normalisation + hash BCrypt
             string cleanPassword = request.Password.Normalize().Trim();
-            string hashedPassword = PasswordHasher.Hash(cleanPassword);
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(cleanPassword);
 
             Console.WriteLine("🔐 Hash généré pour " + request.Password + " : " + hashedPassword);
 
             var user = new User
             {
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-                Role = request.Role,
-                PhoneNumber = request.PhoneNumber,
-                NationalID = request.NationalID,
+                FirstName = request.FirstName?.Trim(),
+                LastName = request.LastName?.Trim(),
+                Email = request.Email.Trim(),
+                Role = string.IsNullOrWhiteSpace(request.Role) ? "Employee" : request.Role.Trim(),
+                PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+                NationalID = string.IsNullOrWhiteSpace(request.NationalID) ? null : request.NationalID.Trim(),
                 PasswordHash = hashedPassword,
                 IsActive = true,
-               
+
                 CreatedAt = DateTime.UtcNow,
-                CreatedBy = request.CreatedBy,
+                CreatedBy = request.CreatedBy
             };
 
             _context.Users.Add(user);

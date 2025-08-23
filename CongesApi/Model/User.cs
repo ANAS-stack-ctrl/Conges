@@ -12,8 +12,8 @@ namespace CongesApi.Model
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Email { get; set; }
-        public string PhoneNumber { get; set; }
-        public string NationalID { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? NationalID { get; set; }
 
         // Propriété string clé étrangère vers UserRole
         public string Role { get; set; }
@@ -25,7 +25,7 @@ namespace CongesApi.Model
         public int? DelegateApprovalToId { get; set; }
         public string PasswordHash { get; set; }
         public bool IsActive { get; set; }
-
+        
         public DateTime CreatedAt { get; set; }
         public int CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }

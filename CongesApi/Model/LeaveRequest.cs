@@ -33,7 +33,9 @@ namespace CongesApi.Model
         public int? UpdatedBy { get; set; }
         public int? CancelledBy { get; set; }
         public DateTime? CancellationDate { get; set; }
-        public string CancellationReason { get; set; }
+        public string? CancellationReason { get; set; }   // ← nullable
+        public bool RequiresDirectorOverride { get; set; } = false;
+
 
         public int LeaveTypeId { get; set; }
         public LeaveType LeaveType { get; set; }

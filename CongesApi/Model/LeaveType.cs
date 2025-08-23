@@ -12,9 +12,9 @@ namespace CongesApi.Model
         public int ConsecutiveDays { get; set; }
 
         public string ApprovalFlow { get; set; }
-        public ApprovalFlowType ApprovalFlowType { get; set; }
+        public ApprovalFlowType ApprovalFlowType { get; set; } // ok
 
         public int? PolicyId { get; set; }
-        public LeavePolicy Policy { get; set; }
+        public LeavePolicy? Policy { get; set; } // 👈 rendre nullable
     }
 }

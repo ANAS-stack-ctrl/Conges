@@ -14,44 +14,54 @@ namespace CongesApi.Controllers
         private readonly ApplicationDbContext _context;
         public UserController(ApplicationDbContext context) => _context = context;
 
+        // The fixed bcrypt hash for password "admin"
+        private const string DEFAULT_ADMIN_HASH =
+            "$2a$11$SkqIVD58mHMmggKoibrF0eHaRqtOjRNvou0h1UZQeuSfodQ9Rt0C6";
+
         // --------------------------------------------------------------------
         // DTOs
         // --------------------------------------------------------------------
         public class CreateUserDto
         {
-            public string FirstName { get; set; }
-            public string LastName { get; set; }
-            public string Email { get; set; }
-            public string Role { get; set; } = "Employee"; // valeur par défaut
+            public string FirstName { get; set; } = "";
+            public string LastName { get; set; } = "";
+            public string Email { get; set; } = "";
+            public string Role { get; set; } = "Employee"; // default
         }
 
         public class UpdateUserDto
         {
-            public string FirstName { get; set; }
-            public string LastName { get; set; }
-            public string Email { get; set; }
+            public string FirstName { get; set; } = "";
+            public string LastName { get; set; } = "";
+            public string Email { get; set; } = "";
+            public string PhoneNumber { get; set; } = ""; // optional
+            public string NationalID { get; set; } = "";  // optional
         }
 
         public class ChangeRoleDto
         {
-            public string Role { get; set; }
+            public string Role { get; set; } = "";
         }
 
         // --------------------------------------------------------------------
-        // GET: api/User  → liste légère pour tableau admin
+        // GET: api/User  → list (null-safe)
         // --------------------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var users = await _context.Users
-                .Include(u => u.UserRole) // navigation (clé = Role)
+                .AsNoTracking()
+                .Include(u => u.UserRole)
                 .Select(u => new
                 {
                     u.UserId,
                     u.FirstName,
                     u.LastName,
                     u.Email,
-                    Role = u.Role
+                    Role = u.Role,
+                    PhoneNumber = u.PhoneNumber ?? string.Empty,
+                    NationalID = u.NationalID ?? string.Empty,
+                    u.IsActive
                 })
                 .ToListAsync();
 
@@ -59,12 +69,13 @@ namespace CongesApi.Controllers
         }
 
         // --------------------------------------------------------------------
-        // GET: api/User/{id}
+        // GET: api/User/{id}  → details (null-safe)
         // --------------------------------------------------------------------
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {
             var user = await _context.Users
+                .AsNoTracking()
                 .Include(u => u.UserRole)
                 .Where(u => u.UserId == id)
                 .Select(u => new
@@ -73,7 +84,10 @@ namespace CongesApi.Controllers
                     u.FirstName,
                     u.LastName,
                     u.Email,
-                    Role = u.Role
+                    Role = u.Role,
+                    PhoneNumber = u.PhoneNumber ?? string.Empty,
+                    NationalID = u.NationalID ?? string.Empty,
+                    u.IsActive
                 })
                 .FirstOrDefaultAsync();
 
@@ -82,28 +96,35 @@ namespace CongesApi.Controllers
         }
 
         // --------------------------------------------------------------------
-        // POST: api/User  → créer un utilisateur
+        // POST: api/User  → create (ALWAYS sets the same password hash)
         // --------------------------------------------------------------------
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            // normalize email & basic checks
+            var emailNorm = (dto.Email ?? string.Empty).Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(emailNorm))
+                return BadRequest("Email requis.");
 
-            // (Optionnel) unicité email
-            var exists = await _context.Users.AnyAsync(u => u.Email == dto.Email);
+            var exists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Email.ToLower() == emailNorm);
             if (exists) return BadRequest("Un utilisateur avec cet email existe déjà.");
 
-            // Rôle valide ?
-            var roleOk = await _context.UserRoles.AnyAsync(r => r.Role == dto.Role);
-            if (!roleOk) return BadRequest("Rôle invalide.");
+            // role validation (if you maintain a UserRoles table)
+            var roleToSet = string.IsNullOrWhiteSpace(dto.Role) ? "Employee" : dto.Role.Trim();
+            var roleOk = await _context.UserRoles.AsNoTracking().AnyAsync(r => r.Role == roleToSet);
+            if (!roleOk)
+                return BadRequest("Rôle invalide.");
 
             var user = new User
             {
                 FirstName = dto.FirstName?.Trim(),
                 LastName = dto.LastName?.Trim(),
-                Email = dto.Email?.Trim(),
-                Role = dto.Role,
-                IsActive = true
+                Email = (dto.Email ?? string.Empty).Trim(),
+                Role = roleToSet,
+                IsActive = true,
+                PasswordHash = DEFAULT_ADMIN_HASH    // <<< fixed hash for all new users
             };
 
             _context.Users.Add(user);
@@ -113,47 +134,83 @@ namespace CongesApi.Controllers
         }
 
         // --------------------------------------------------------------------
-        // PUT: api/User/{id}  → modifier infos de base (nom, prénom, email)
+        // PUT: api/User/{id}  → update basic info (null-safe)
         // --------------------------------------------------------------------
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
             if (user == null) return NotFound();
 
-            user.FirstName = dto.FirstName?.Trim() ?? user.FirstName;
-            user.LastName = dto.LastName?.Trim() ?? user.LastName;
-            user.Email = dto.Email?.Trim() ?? user.Email;
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var newEmailNorm = dto.Email.Trim().ToLower();
+                var exists = await _context.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.UserId != id && u.Email.ToLower() == newEmailNorm);
+                if (exists) return BadRequest("Un autre utilisateur utilise déjà cet email.");
+                user.Email = dto.Email.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.FirstName))
+                user.FirstName = dto.FirstName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.LastName))
+                user.LastName = dto.LastName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+                user.PhoneNumber = dto.PhoneNumber.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.NationalID))
+                user.NationalID = dto.NationalID.Trim();
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "Utilisateur mis à jour" });
         }
 
         // --------------------------------------------------------------------
-        // PUT: api/User/{id}/role  → changer le rôle
+        // PUT: api/User/{id}/role  → change role
         // --------------------------------------------------------------------
-        [HttpPut("{id}/role")]
+        [HttpPut("{id:int}/role")]
         public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeRoleDto dto)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
             if (user == null) return NotFound();
 
-            var roleOk = await _context.UserRoles.AnyAsync(r => r.Role == dto.Role);
+            var roleToSet = (dto.Role ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(roleToSet))
+                return BadRequest("Rôle requis.");
+
+            var roleOk = await _context.UserRoles.AsNoTracking().AnyAsync(r => r.Role == roleToSet);
             if (!roleOk) return BadRequest("Rôle invalide.");
 
-            user.Role = dto.Role;
+            user.Role = roleToSet;
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Rôle mis à jour" });
         }
 
         // --------------------------------------------------------------------
+        // (Optional) POST: api/User/{id}/reset-password  → back to default hash
+        // --------------------------------------------------------------------
+        [HttpPost("{id:int}/reset-password")]
+        public async Task<IActionResult> ResetPasswordToDefault(int id)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
+            if (user == null) return NotFound();
+
+            user.PasswordHash = DEFAULT_ADMIN_HASH;
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Mot de passe réinitialisé (hash par défaut)" });
+        }
+
+        // --------------------------------------------------------------------
         // DELETE: api/User/{id}
         // --------------------------------------------------------------------
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
             if (user == null) return NotFound();
 
             _context.Users.Remove(user);
