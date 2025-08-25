@@ -9,7 +9,7 @@ namespace CongesApi.DTOs
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int RequestedDays { get; set; }
-        public string EmployeeComments { get; set; } = "";
+        public string? EmployeeComments { get; set; } = "";
         public string EmployeeSignatureBase64 { get; set; } = "";
         public int UserId { get; set; }
         public IFormFile? ProofFile { get; set; }

@@ -170,3 +170,4 @@ C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\refint\CongesApi
 C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\CongesApi.pdb
 C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\CongesApi.genruntimeconfig.cache
 C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\ref\CongesApi.dll
+C:\Users\Asus\source\repos\CongesApi\CongesApi\obj\Debug\net8.0\CongesApi.sourcelink.json
