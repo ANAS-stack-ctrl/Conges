@@ -1,0 +1,79 @@
+.login-container {
+  display: flex;
+  height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.login-left {
+  flex: 1;
+  padding: 60px;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-right {
+  flex: 1;
+  background-color: #f5f7fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-logo {
+  width: 120px;
+  margin-bottom: 40px;
+}
+
+.welcome-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #5f5f5f;
+  margin-bottom: 40px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-form label {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.login-form input {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #d4d4d4;
+  border-radius: 4px;
+  background-color: #eaeaea;
+}
+
+.login-form button {
+  padding: 10px;
+  background-color: #7b44c3;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 130px;
+  align-self: center;
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: auto;
+  font-size: 12px;
+  color: #888;
+}
+
+.moon-image {
+  width: 220px;
+  filter: drop-shadow(0 0 40px #c3b6e6);
+}

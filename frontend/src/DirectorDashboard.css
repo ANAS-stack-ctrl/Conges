@@ -1,0 +1,4 @@
+/* src/DirectorDashboard.css */
+/* on réutilise exactement les mêmes styles (copie) pour garder le thème */
+@import "./ManagerDashboard.css";
+/* tu peux ajouter une petite variante si tu veux, sinon cette ligne suffit */
