@@ -32,6 +32,7 @@ namespace CongesApi.Data
         public DbSet<NotificationType> NotificationTypes { get; set; }
         public DbSet<HalfDayPeriodType> HalfDayPeriodTypes { get; set; }
         public DbSet<DocumentCategory> DocumentCategories { get; set; }
+        public DbSet<PdfTemplate> PdfTemplates { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

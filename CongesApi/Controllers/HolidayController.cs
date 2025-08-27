@@ -15,11 +15,10 @@ namespace CongesApi.Controllers
 
     public class HolidayDto
     {
-        [Required]
-        public DateTime Date { get; set; }
-        [Required]
-        public string Description { get; set; } = "";
+        [Required] public DateTime Date { get; set; }
+        [Required] public string Description { get; set; } = "";
         public bool IsRecurring { get; set; }
+        public int DurationDays { get; set; } = 1;
     }
 
     [ApiController]
@@ -27,13 +26,9 @@ namespace CongesApi.Controllers
     public class HolidayController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        public HolidayController(ApplicationDbContext context) => _context = context;
 
-        public HolidayController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // ──────────────────────────────── LISTE
+        // ───────────────────────── LISTE
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -46,17 +41,15 @@ namespace CongesApi.Controllers
             return Ok(holidays);
         }
 
-        // ──────────────────────────────── GET BY ID
-        [HttpGet("{id}")]
+        // ───────────────────────── GET BY ID
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {
             var holiday = await _context.Holidays.FindAsync(id);
-            if (holiday == null) return NotFound();
-
-            return Ok(holiday);
+            return holiday is null ? NotFound() : Ok(holiday);
         }
 
-        // ──────────────────────────────── PLAGE (déroule les récurrents)
+        // ───────────────────────── RANGE (déroule récurrents) — utile pour le calcul
         // GET: api/Holiday/range?from=2025-01-01&to=2025-12-31
         [HttpGet("range")]
         public async Task<IActionResult> GetRange([FromQuery] DateTime from, [FromQuery] DateTime to)
@@ -65,12 +58,12 @@ namespace CongesApi.Controllers
 
             var nonRecurring = await _context.Holidays
                 .Where(h => !h.IsRecurring && h.Date.Date >= from.Date && h.Date.Date <= to.Date)
-                .Select(h => new { h.Date, h.Description })
+                .Select(h => new { h.Date, h.Description, h.DurationDays })
                 .ToListAsync();
 
             var recurring = await _context.Holidays
                 .Where(h => h.IsRecurring)
-                .Select(h => new { h.Date.Month, h.Date.Day, h.Description })
+                .Select(h => new { h.Date.Month, h.Date.Day, h.Description, h.DurationDays })
                 .ToListAsync();
 
             var results = new List<object>();
@@ -79,26 +72,63 @@ namespace CongesApi.Controllers
             for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
             {
                 var found = recurring.FirstOrDefault(r => r.Month == d.Month && r.Day == d.Day);
-                if (found != null)
+                if (found != default)
                 {
-                    results.Add(new { Date = d, Description = found.Description });
+                    results.Add(new { Date = d, Description = found.Description, DurationDays = found.DurationDays });
                 }
             }
 
             return Ok(results.OrderBy(x => ((DateTime)x!.GetType().GetProperty("Date")!.GetValue(x)!).Date));
         }
 
-        // ──────────────────────────────── CRUD
+        // ───────────────────────── CRUD
         [HttpPost]
-        public async Task<IActionResult> Create(Holiday holiday)
+        public async Task<IActionResult> Create([FromBody] HolidayDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (dto.DurationDays < 1) dto.DurationDays = 1;
 
-            _context.Holidays.Add(holiday);
+            var entity = new Holiday
+            {
+                Date = dto.Date.Date,
+                Description = dto.Description.Trim(),
+                IsRecurring = dto.IsRecurring,
+                DurationDays = dto.DurationDays
+            };
+
+            _context.Holidays.Add(entity);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(Get), new { id = holiday.HolidayId }, holiday);
+            return CreatedAtAction(nameof(Get), new { id = entity.HolidayId }, entity);
         }
 
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] HolidayDto dto)
+        {
+            var entity = await _context.Holidays.FindAsync(id);
+            if (entity is null) return NotFound();
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            entity.Date = dto.Date.Date;
+            entity.Description = dto.Description.Trim();
+            entity.IsRecurring = dto.IsRecurring;
+            entity.DurationDays = Math.Max(1, dto.DurationDays);
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var holiday = await _context.Holidays.FindAsync(id);
+            if (holiday == null) return NotFound();
+
+            _context.Holidays.Remove(holiday);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // ───────────────────────── BULK (optionnel)
         [HttpPost("bulk")]
         public async Task<IActionResult> BulkCreate([FromBody] HolidayBulkDto dto)
         {
@@ -119,7 +149,8 @@ namespace CongesApi.Controllers
                     {
                         Date = item.Date.Date,
                         Description = item.Description.Trim(),
-                        IsRecurring = item.IsRecurring
+                        IsRecurring = item.IsRecurring,
+                        DurationDays = Math.Max(1, item.DurationDays)
                     });
                 }
             }
@@ -127,111 +158,67 @@ namespace CongesApi.Controllers
             return Ok(new { added });
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Holiday holiday)
-        {
-            if (id != holiday.HolidayId) return BadRequest("ID mismatch");
-
-            _context.Entry(holiday).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Holidays.Any(h => h.HolidayId == id)) return NotFound();
-                else throw;
-            }
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var holiday = await _context.Holidays.FindAsync(id);
-            if (holiday == null) return NotFound();
-
-            _context.Holidays.Remove(holiday);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // ──────────────────────────────── SEED MAROC — FIXES (récurrents)
-        // POST: api/Holiday/seed/morocco/fixed
+        // ───────────────────────── SEED MAROC (fixes)
         [HttpPost("seed/morocco/fixed")]
         public async Task<IActionResult> SeedMoroccoFixed()
         {
-            // Liste officielle des jours fixes récurrents (dont Yennayer depuis 2024)
-            var fixedRecurring = new (int Month, int Day, string Name)[]
+            var fixedRecurring = new (int Month, int Day, string Name, int Days)[]
             {
-                (1, 1,  "Nouvel an"),
-                (1, 11, "Manifeste de l'Indépendance"),
-                (1, 13, "Nouvel an amazigh (Yennayer)"),
-                (5, 1,  "Fête du Travail"),
-                (7, 30, "Fête du Trône"),
-                (8, 14, "Allégeance Oued Eddahab"),
-                (8, 20, "Révolution du Roi et du Peuple"),
-                (8, 21, "Anniversaire de SM le Roi / Fête de la Jeunesse"),
-                (11, 6, "Marche Verte"),
-                (11, 18,"Fête de l'Indépendance")
+                (1, 1,  "Nouvel an", 1),
+                (1, 11, "Manifeste de l'Indépendance", 1),
+                (1, 13, "Nouvel an amazigh (Yennayer)", 1),
+                (5, 1,  "Fête du Travail", 1),
+                (7, 30, "Fête du Trône", 1),
+                (8, 14, "Allégeance Oued Eddahab", 1),
+                (8, 20, "Révolution du Roi et du Peuple", 1),
+                (8, 21, "Anniversaire de SM le Roi / Fête de la Jeunesse", 1),
+                (11, 6, "Marche Verte", 1),
+                (11, 18,"Fête de l'Indépendance", 1)
             };
 
             int added = 0;
             foreach (var f in fixedRecurring)
             {
-                var exists = await _context.Holidays.AnyAsync(h =>
-                    h.IsRecurring &&
-                    h.Date.Month == f.Month && h.Date.Day == f.Day);
+                bool exists = await _context.Holidays.AnyAsync(h =>
+                    h.IsRecurring && h.Date.Month == f.Month && h.Date.Day == f.Day);
 
                 if (!exists)
                 {
                     _context.Holidays.Add(new Holiday
                     {
-                        // Année arbitraire pour récurrents
                         Date = new DateTime(2000, f.Month, f.Day),
                         Description = f.Name,
-                        IsRecurring = true
+                        IsRecurring = true,
+                        DurationDays = f.Days
                     });
                     added++;
                 }
             }
-
             await _context.SaveChangesAsync();
             return Ok(new { added });
         }
 
-        // ──────────────────────────────── SEED MAROC — FÊTES HÉGIRIENNES (mobiles)
-        // Ajoute pour UNE année grégorienne donnée des entrées non-récurrentes.
-        // POST: api/Holiday/seed/morocco/hijri/2025
+        // ───────────────────────── SEED HÉGIRIEN (mobiles) – identique, DurationDays=1 par défaut
         [HttpPost("seed/morocco/hijri/{year:int}")]
         public async Task<IActionResult> SeedMoroccoHijriForYear([FromRoute] int year)
         {
-            if (year < 1900 || year > 2100)
-                return BadRequest("Année hors plage raisonnable (1900–2100).");
+            if (year < 1900 || year > 2100) return BadRequest("Année hors plage (1900–2100).");
 
             var hc = new HijriCalendar();
             var from = new DateTime(year, 1, 1);
             var to = new DateTime(year, 12, 31);
 
-            // Cibles (mois hégiriens: 1=Muharram, 3=Rabi' I, 10=Shawwal, 12=Dhu al-Hijjah)
-            var targets = new List<(int HijriMonth, int HijriDay, string Name)>
+            var targets = new List<(int HijriMonth, int HijriDay, string Name, int Days)>
             {
-                (10, 1,  "Aïd al-Fitr"),
-                (10, 2,  "Aïd al-Fitr (2e jour)"),
-
-                (12, 10, "Aïd al-Adha"),
-                (12, 11, "Aïd al-Adha (2e jour)"),
-
-                (1,  1,  "Nouvel an de l’Hégire"), // 1 Muharram
-
-                (3,  12, "Mawlid (naissance du Prophète)"),
-                (3,  13, "Mawlid (2e jour)")
+                (10, 1,  "Aïd al-Fitr", 1),
+                (10, 2,  "Aïd al-Fitr (2e jour)", 1),
+                (12, 10, "Aïd al-Adha", 1),
+                (12, 11, "Aïd al-Adha (2e jour)", 1),
+                (1,  1,  "Nouvel an de l’Hégire", 1),
+                (3,  12, "Mawlid (naissance du Prophète)", 1),
+                (3,  13, "Mawlid (2e jour)", 1)
             };
 
-            // Balayage de l'année grégorienne, conversion Hijri et ajout si correspondance.
             int added = 0;
             for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
             {
@@ -241,8 +228,8 @@ namespace CongesApi.Controllers
 
                 if (!string.IsNullOrEmpty(match.Name))
                 {
-                    bool exists = await _context.Holidays
-                        .AnyAsync(h => !h.IsRecurring && h.Date.Date == d.Date && h.Description == match.Name);
+                    bool exists = await _context.Holidays.AnyAsync(h =>
+                        !h.IsRecurring && h.Date.Date == d.Date && h.Description == match.Name);
 
                     if (!exists)
                     {
@@ -250,37 +237,15 @@ namespace CongesApi.Controllers
                         {
                             Date = d.Date,
                             Description = match.Name,
-                            IsRecurring = false
+                            IsRecurring = false,
+                            DurationDays = match.Days
                         });
                         added++;
                     }
                 }
             }
-
             await _context.SaveChangesAsync();
             return Ok(new { year, added });
         }
-
-        // POST: api/Holiday/seed/morocco/hijri-range?from=2025&to=2028
-        [HttpPost("seed/morocco/hijri-range")]
-        public async Task<IActionResult> SeedMoroccoHijriRange([FromQuery] int from = 2024, [FromQuery] int to = 2026)
-        {
-            if (from > to) return BadRequest("from > to");
-            int total = 0;
-            for (int y = from; y <= to; y++)
-            {
-                var res = await SeedMoroccoHijriForYear(y) as OkObjectResult;
-                if (res?.Value is not null)
-                {
-                    var dict = res.Value.GetType()
-                        .GetProperties()
-                        .ToDictionary(p => p.Name, p => p.GetValue(res.Value));
-                    if (dict.TryGetValue("added", out var a) && a is int ai) total += ai;
-                }
-            }
-            return Ok(new { from, to, added = total });
-        }
     }
 }
-
-

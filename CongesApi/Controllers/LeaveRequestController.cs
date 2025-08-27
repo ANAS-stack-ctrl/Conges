@@ -120,7 +120,7 @@ public class LeaveRequestController : ControllerBase
             .ToListAsync();
     }
 
-    // ─────────────── types (pour le form employé)
+    // ─────────────── types (pour le form employé/manager)
     [HttpGet("leave-types")]
     public async Task<IActionResult> GetLeaveTypes()
     {
@@ -307,7 +307,7 @@ public class LeaveRequestController : ControllerBase
             RequestedDays = dto.RequestedDays,
             ActualDays = dto.RequestedDays,
             Status = "En attente",
-            EmployeeComments = dto.EmployeeComments ?? string.Empty, // ← commentaire facultatif
+            EmployeeComments = dto.EmployeeComments ?? string.Empty,
             EmployeeSignaturePath = signaturePath,
             SignatureDate = DateTime.Now,
             CreatedAt = DateTime.Now,
@@ -355,7 +355,7 @@ public class LeaveRequestController : ControllerBase
 
         if (req.RequiresDirectorOverride && !steps.Contains("Director"))
         {
-            steps.Insert(Math.Min(1, steps.Count), "Director");
+            steps.Insert(Math.min(1, steps.Count), "Director");
         }
 
         if (flow.Equals("Parallel", StringComparison.OrdinalIgnoreCase))
@@ -460,7 +460,6 @@ public class LeaveRequestController : ControllerBase
 
         return Ok(new { workingDays });
     }
-
 
     [HttpGet("user/{userId:int}")]
     public async Task<IActionResult> GetRequestsByUser(int userId)

@@ -11,6 +11,9 @@
           "BCrypt.Net-Next": "4.0.2",
           "Microsoft.EntityFrameworkCore.Design": "9.0.7",
           "Microsoft.EntityFrameworkCore.SqlServer": "9.0.7",
+          "Microsoft.Playwright": "1.54.0",
+          "PuppeteerSharp": "20.2.2",
+          "Scriban": "6.2.1",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
         "runtime": {
@@ -721,6 +724,19 @@
           }
         }
       },
+      "Microsoft.Playwright/1.54.0": {
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "7.0.0",
+          "System.ComponentModel.Annotations": "5.0.0",
+          "System.Text.Json": "9.0.7"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Playwright.dll": {
+            "assemblyVersion": "1.54.0.0",
+            "fileVersion": "1.54.0.0"
+          }
+        }
+      },
       "Microsoft.SqlServer.Server/1.0.0": {
         "runtime": {
           "lib/netstandard2.0/Microsoft.SqlServer.Server.dll": {
@@ -753,6 +769,25 @@
           "lib/net6.0/Mono.TextTemplating.dll": {
             "assemblyVersion": "3.0.0.0",
             "fileVersion": "3.0.0.1"
+          }
+        }
+      },
+      "PuppeteerSharp/20.2.2": {
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "9.0.7"
+        },
+        "runtime": {
+          "lib/net8.0/PuppeteerSharp.dll": {
+            "assemblyVersion": "20.2.2.0",
+            "fileVersion": "20.2.2.0"
+          }
+        }
+      },
+      "Scriban/6.2.1": {
+        "runtime": {
+          "lib/net7.0/Scriban.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.2.1.0"
           }
         }
       },
@@ -815,6 +850,7 @@
         }
       },
       "System.Collections.Immutable/7.0.0": {},
+      "System.ComponentModel.Annotations/5.0.0": {},
       "System.Composition/7.0.0": {
         "dependencies": {
           "System.Composition.AttributedModel": "7.0.0",
@@ -1405,6 +1441,13 @@
       "path": "microsoft.openapi/1.6.14",
       "hashPath": "microsoft.openapi.1.6.14.nupkg.sha512"
     },
+    "Microsoft.Playwright/1.54.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-u/ftvv1mdusX2R+4u0XINaRw10w9oGhxZePjkFgNZhpG/hUaOg/0npgavXh3mlO1u8b06v+XQKuvOYdsieHMZg==",
+      "path": "microsoft.playwright/1.54.0",
+      "hashPath": "microsoft.playwright.1.54.0.nupkg.sha512"
+    },
     "Microsoft.SqlServer.Server/1.0.0": {
       "type": "package",
       "serviceable": true,
@@ -1425,6 +1468,20 @@
       "sha512": "sha512-YqueG52R/Xej4VVbKuRIodjiAhV0HR/XVbLbNrJhCZnzjnSjgMJ/dCdV0akQQxavX6hp/LC6rqLGLcXeQYU7XA==",
       "path": "mono.texttemplating/3.0.0",
       "hashPath": "mono.texttemplating.3.0.0.nupkg.sha512"
+    },
+    "PuppeteerSharp/20.2.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-66l7Uzh4mzTaFqRkkP62Jno/lh+ORNEHY2QjtevbQwqQ6TO1w80wZqNGeUR416aw8AEEFZs8vO9MOaJx8i9ySw==",
+      "path": "puppeteersharp/20.2.2",
+      "hashPath": "puppeteersharp.20.2.2.nupkg.sha512"
+    },
+    "Scriban/6.2.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-jauX7gvreKvlD1+tkQ9D1i0kNg2p3P1ZqkDftJeTB7JAF7zKtafpyKTtr3m5Kr6d4GYw0CDfRcm2P07/efwdqQ==",
+      "path": "scriban/6.2.1",
+      "hashPath": "scriban.6.2.1.nupkg.sha512"
     },
     "Swashbuckle.AspNetCore/6.6.2": {
       "type": "package",
@@ -1474,6 +1531,13 @@
       "sha512": "sha512-dQPcs0U1IKnBdRDBkrCTi1FoajSTBzLcVTpjO4MBCMC7f4pDOIPzgBoX8JjG7X6uZRJ8EBxsi8+DR1JuwjnzOQ==",
       "path": "system.collections.immutable/7.0.0",
       "hashPath": "system.collections.immutable.7.0.0.nupkg.sha512"
+    },
+    "System.ComponentModel.Annotations/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-dMkqfy2el8A8/I76n2Hi1oBFEbG1SfxD2l5nhwXV3XjlnOmwxJlQbYpJH4W51odnU9sARCSAgv7S3CyAFMkpYg==",
+      "path": "system.componentmodel.annotations/5.0.0",
+      "hashPath": "system.componentmodel.annotations.5.0.0.nupkg.sha512"
     },
     "System.Composition/7.0.0": {
       "type": "package",

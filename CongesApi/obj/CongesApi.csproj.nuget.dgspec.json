@@ -64,6 +64,18 @@
               "target": "Package",
               "version": "[9.0.7, )"
             },
+            "Microsoft.Playwright": {
+              "target": "Package",
+              "version": "[1.54.0, )"
+            },
+            "PuppeteerSharp": {
+              "target": "Package",
+              "version": "[20.2.2, )"
+            },
+            "Scriban": {
+              "target": "Package",
+              "version": "[6.2.1, )"
+            },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
               "version": "[6.6.2, )"
