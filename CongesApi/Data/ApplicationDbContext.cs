@@ -40,6 +40,9 @@ namespace CongesApi.Data
         public DbSet<PdfTemplate> PdfTemplates { get; set; } = default!;
         public DbSet<ManagerAssignment> ManagerAssignments { get; set; } = null!;
 
+        // ───────── Délégations de managers (NOUVEAU)
+        public DbSet<ManagerDelegation> ManagerDelegations { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -265,7 +268,7 @@ namespace CongesApi.Data
                 entity.HasKey(x => x.ManagerAssignmentId);
 
                 entity.HasOne(x => x.Hierarchy)
-                      .WithMany() // ou .WithMany(h => h.ManagerAssignments) si tu ajoutes la collection sur Hierarchy
+                      .WithMany()
                       .HasForeignKey(x => x.HierarchyId)
                       .OnDelete(DeleteBehavior.Cascade);
 
@@ -279,10 +282,41 @@ namespace CongesApi.Data
                       .HasForeignKey(x => x.ManagerUserId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // Un employé ne peut avoir qu’une affectation Active par hiérarchie
                 entity.HasIndex(x => new { x.HierarchyId, x.EmployeeUserId, x.Active })
                       .IsUnique();
             });
+
+            // ───────── ManagerDelegation (complet)
+            // ───────── ManagerDelegation
+            modelBuilder.Entity<ManagerDelegation>(e =>
+            {
+                e.HasKey(x => x.ManagerDelegationId);
+
+                e.Property(x => x.Active).HasDefaultValue(true);
+                e.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                e.HasIndex(x => new { x.HierarchyId, x.ManagerUserId, x.DelegateManagerUserId, x.StartDate, x.EndDate })
+                 .IsUnique();
+                e.HasIndex(x => new { x.HierarchyId, x.ManagerUserId, x.Active });
+                e.HasIndex(x => new { x.HierarchyId, x.DelegateManagerUserId, x.Active });
+
+                e.HasOne(x => x.Hierarchy)
+                 .WithMany()
+                 .HasForeignKey(x => x.HierarchyId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // IMPORTANT : navs explicites pour éviter les FKs shadow (*...1)
+                e.HasOne(x => x.Manager)
+                 .WithMany()
+                 .HasForeignKey(x => x.ManagerUserId)
+                 .OnDelete(DeleteBehavior.NoAction); // évite multiple cascade paths
+
+                e.HasOne(x => x.Delegate)
+                 .WithMany()
+                 .HasForeignKey(x => x.DelegateManagerUserId)
+                 .OnDelete(DeleteBehavior.NoAction);
+            });
+
         }
     }
 }

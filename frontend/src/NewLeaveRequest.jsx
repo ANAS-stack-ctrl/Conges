@@ -117,9 +117,10 @@ function NewLeaveRequest({ user }) {
         `https://localhost:7233/api/LeaveRequest/check-overlap?userId=${user.userId}&startDate=${startDate}&endDate=${effectiveEnd}`
       );
       const overlapData = await overlapRes.json();
-      if (overlapData.hasOverlap) {
-        return toast.error("Vous avez déjà une demande en cours sur cette période.");
-      }
+      if (overlapData.overlap) {
+  return toast.error("Vous avez déjà une demande en cours sur cette période.");
+}
+
     } catch {
       // Si l'API n'existe pas encore côté backend, ça plantera ici
       console.warn("Vérification overlap indisponible");

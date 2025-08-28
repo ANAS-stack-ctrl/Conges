@@ -65,24 +65,47 @@ public class ApprovalController : ControllerBase
             baseQ = baseQ.Where(a => a.LeaveRequest.HierarchyId == reviewerHierarchyId.Value);
         }
 
-        // ➕ Filtre “manager désigné” (seulement pour les managers)
+        // ➕ Filtre Manager : assignment + délégation (manager effectif)
         if (roleNorm == "manager" && reviewerUserId.HasValue)
         {
             int rid = reviewerUserId.Value;
 
             baseQ = baseQ.Where(a =>
-                // Cas 1 : pas d’affectation active -> visible par tous les managers de la hiérarchie
+                // (A) Pas d'assignation active -> visible par tous les managers de la hiérarchie
                 !_db.ManagerAssignments.Any(ma =>
                     ma.Active
                     && ma.HierarchyId == a.LeaveRequest.HierarchyId
                     && ma.EmployeeUserId == a.LeaveRequest.UserId)
 
-                // Cas 2 : affectation active -> uniquement le manager désigné
-                || _db.ManagerAssignments.Any(ma =>
-                    ma.Active
-                    && ma.HierarchyId == a.LeaveRequest.HierarchyId
-                    && ma.EmployeeUserId == a.LeaveRequest.UserId
-                    && ma.ManagerUserId == rid)
+                // (B) Assignation active sans délégation couvrante -> seulement le manager assigné
+                || (
+                    _db.ManagerAssignments.Any(ma =>
+                        ma.Active
+                        && ma.HierarchyId == a.LeaveRequest.HierarchyId
+                        && ma.EmployeeUserId == a.LeaveRequest.UserId
+                        && ma.ManagerUserId == rid)
+                    &&
+                    !_db.ManagerDelegations.Any(d =>
+                        d.Active
+                        && d.HierarchyId == a.LeaveRequest.HierarchyId
+                        && d.ManagerUserId == rid
+                        && d.StartDate <= a.LeaveRequest.EndDate
+                        && d.EndDate >= a.LeaveRequest.StartDate)
+                )
+
+                // (C) Délégation couvrant la période -> seulement le manager délégué
+                || _db.ManagerDelegations.Any(d =>
+                    d.Active
+                    && d.HierarchyId == a.LeaveRequest.HierarchyId
+                    && d.DelegateManagerUserId == rid
+                    && d.StartDate <= a.LeaveRequest.EndDate
+                    && d.EndDate >= a.LeaveRequest.StartDate
+                    && _db.ManagerAssignments.Any(ma =>
+                        ma.Active
+                        && ma.HierarchyId == a.LeaveRequest.HierarchyId
+                        && ma.EmployeeUserId == a.LeaveRequest.UserId
+                        && ma.ManagerUserId == d.ManagerUserId)
+                )
             );
         }
 
@@ -180,18 +203,18 @@ public class ApprovalController : ControllerBase
             if (actor.HierarchyId != req.HierarchyId)
                 return Forbid("Cette demande n'appartient pas à votre hiérarchie.");
 
-            // ➕ Garde-fou : si un manager désigné existe, seul lui peut agir
+            // ➕ Garde-fou Manager : seul le manager effectif (assignment ou délégué) peut agir
             if (roleNorm == "manager")
             {
-                var assignment = await _db.ManagerAssignments.AsNoTracking()
-                    .Where(ma => ma.Active
-                              && ma.HierarchyId == req.HierarchyId
-                              && ma.EmployeeUserId == req.UserId)
-                    .Select(ma => ma.ManagerUserId)
-                    .FirstOrDefaultAsync();
+                var effective = await GetEffectiveManagerAsync(
+                    req.HierarchyId ?? 0,
+                    req.UserId,
+                    req.StartDate,
+                    req.EndDate
+                );
 
-                if (assignment != 0 && assignment != dto.ActorUserId.Value)
-                    return Forbid("Vous n'êtes pas le manager désigné pour cet employé.");
+                if (effective.HasValue && effective.Value != dto.ActorUserId.Value)
+                    return Forbid("Vous n'êtes pas le manager habilité à valider cette demande (délégation/assignation).");
             }
         }
 
@@ -459,6 +482,33 @@ public class ApprovalController : ControllerBase
             actionDate = ap.ActionDate,
             requestStatus = req.Status
         });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Helpers "manager effectif"
+    // ─────────────────────────────────────────────────────────────
+    private async Task<int?> GetEffectiveManagerAsync(int hierarchyId, int employeeUserId, DateTime reqStart, DateTime reqEnd)
+    {
+        // Manager assigné ?
+        var assigned = await _db.ManagerAssignments.AsNoTracking()
+            .Where(ma => ma.Active && ma.HierarchyId == hierarchyId && ma.EmployeeUserId == employeeUserId)
+            .Select(ma => (int?)ma.ManagerUserId)
+            .FirstOrDefaultAsync();
+
+        if (assigned == null || assigned.Value == 0)
+            return null; // pas d’assignation : tous les managers de la hiérarchie peuvent voir
+
+        // Délégation couvrant la période ?
+        var delegateId = await _db.ManagerDelegations.AsNoTracking()
+            .Where(d => d.Active
+                     && d.HierarchyId == hierarchyId
+                     && d.ManagerUserId == assigned.Value
+                     && d.StartDate <= reqEnd.Date
+                     && d.EndDate >= reqStart.Date)
+            .Select(d => (int?)d.DelegateManagerUserId)
+            .FirstOrDefaultAsync();
+
+        return delegateId ?? assigned.Value;
     }
 
     private static string NormalizeRole(string role)

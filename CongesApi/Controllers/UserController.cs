@@ -42,14 +42,11 @@ namespace CongesApi.Controllers
             return match;
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // Parse hiérarchie : accepte 123, "123", "H1"/"H2", ou Nom exact
-        // ─────────────────────────────────────────────────────────────
+        // Accepte "2", 2, "H1", "Equipe A"
         private async Task<int?> ParseHierarchyAsync(string? raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;
 
-            // Essayer un entier direct
             if (int.TryParse(raw, out var idNum))
             {
                 var ok = await _context.Hierarchies.AsNoTracking()
@@ -59,14 +56,12 @@ namespace CongesApi.Controllers
 
             var val = raw.Trim();
 
-            // Essayer par Code exact (H1, H2, …)
             var byCode = await _context.Hierarchies.AsNoTracking()
                 .Where(h => h.Code != null && h.Code.ToLower() == val.ToLower())
                 .Select(h => h.HierarchyId)
                 .FirstOrDefaultAsync();
             if (byCode != 0) return byCode;
 
-            // Essayer par Nom exact
             var byName = await _context.Hierarchies.AsNoTracking()
                 .Where(h => h.Name.ToLower() == val.ToLower())
                 .Select(h => h.HierarchyId)
@@ -76,32 +71,28 @@ namespace CongesApi.Controllers
             return null;
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // DTOs (HierarchyId sous forme de string tolérante)
-        // ─────────────────────────────────────────────────────────────
         public class CreateUserDto
         {
             public string FirstName { get; set; } = "";
             public string LastName { get; set; } = "";
             public string Email { get; set; } = "";
             public string Role { get; set; } = "Employee";
-            public string? HierarchyId { get; set; }   // ← peut être "2", "H1", "H2", "Equipe A"…
+            public string? HierarchyId { get; set; } // "2", "H1", "Equipe A", null
         }
 
         public class UpdateUserDto
         {
-            public string FirstName { get; set; } = "";
-            public string LastName { get; set; } = "";
-            public string Email { get; set; } = "";
-            public string PhoneNumber { get; set; } = "";
-            public string NationalID { get; set; } = "";
-            public string? HierarchyId { get; set; }   // ← idem (string tolérante)
+            public string? FirstName { get; set; }
+            public string? LastName { get; set; }
+            public string? Email { get; set; }
+            public string? PhoneNumber { get; set; }
+            public string? NationalID { get; set; }
+            public string? HierarchyId { get; set; } // "" => retirer; "2"/"H1"/nom => affecter; null => ne pas toucher
             public string? Role { get; set; }
         }
 
         public class ChangeRoleDto { public string Role { get; set; } = ""; }
 
-        // GET list
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -125,7 +116,6 @@ namespace CongesApi.Controllers
             return Ok(users);
         }
 
-        // GET by id
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -151,7 +141,6 @@ namespace CongesApi.Controllers
             return Ok(user);
         }
 
-        // POST create
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
@@ -208,7 +197,6 @@ namespace CongesApi.Controllers
             return Ok(new { message = "Utilisateur créé", userId = user.UserId });
         }
 
-        // PUT update
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
         {
@@ -225,37 +213,42 @@ namespace CongesApi.Controllers
                 user.Email = dto.Email.Trim();
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.FirstName))
-                user.FirstName = dto.FirstName.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.LastName))
-                user.LastName = dto.LastName.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
-                user.PhoneNumber = dto.PhoneNumber.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.NationalID))
-                user.NationalID = dto.NationalID.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.FirstName)) user.FirstName = dto.FirstName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.LastName)) user.LastName = dto.LastName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber)) user.PhoneNumber = dto.PhoneNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.NationalID)) user.NationalID = dto.NationalID.Trim();
 
-            // Hiérarchie : accepte ID, "H1"/"H2", ou Nom
-            if (!string.IsNullOrWhiteSpace(dto.HierarchyId))
+            // Hiérarchie : null => ne pas toucher ; "" => retirer ; "2"/"H1"/nom => affecter
+            if (dto.HierarchyId != null)
             {
-                var parsed = await ParseHierarchyAsync(dto.HierarchyId);
-                if (parsed == null) return BadRequest("Hiérarchie invalide.");
-
-                user.HierarchyId = parsed.Value;
-
-                var link = await _context.HierarchyMembers
-                    .FirstOrDefaultAsync(m => m.UserId == id);
-                if (link == null)
+                if (string.IsNullOrWhiteSpace(dto.HierarchyId))
                 {
-                    _context.HierarchyMembers.Add(new HierarchyMember
-                    {
-                        HierarchyId = parsed.Value,
-                        UserId = id,
-                        Role = user.Role
-                    });
+                    // Retirer
+                    user.HierarchyId = null;
+                    var link = await _context.HierarchyMembers.FirstOrDefaultAsync(m => m.UserId == id);
+                    if (link != null) _context.HierarchyMembers.Remove(link);
                 }
                 else
                 {
-                    link.HierarchyId = parsed.Value;
+                    var parsed = await ParseHierarchyAsync(dto.HierarchyId);
+                    if (parsed == null) return BadRequest("Hiérarchie invalide.");
+
+                    user.HierarchyId = parsed.Value;
+
+                    var link = await _context.HierarchyMembers.FirstOrDefaultAsync(m => m.UserId == id);
+                    if (link == null)
+                    {
+                        _context.HierarchyMembers.Add(new HierarchyMember
+                        {
+                            HierarchyId = parsed.Value,
+                            UserId = id,
+                            Role = user.Role
+                        });
+                    }
+                    else
+                    {
+                        link.HierarchyId = parsed.Value;
+                    }
                 }
             }
 
@@ -267,8 +260,7 @@ namespace CongesApi.Controllers
 
                 user.Role = roleCanon;
 
-                var link = await _context.HierarchyMembers
-                    .FirstOrDefaultAsync(m => m.UserId == id);
+                var link = await _context.HierarchyMembers.FirstOrDefaultAsync(m => m.UserId == id);
                 if (link != null) link.Role = roleCanon;
             }
 
@@ -276,7 +268,6 @@ namespace CongesApi.Controllers
             return Ok(new { message = "Utilisateur mis à jour" });
         }
 
-        // PUT change role
         [HttpPut("{id:int}/role")]
         public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeRoleDto dto)
         {
@@ -289,8 +280,7 @@ namespace CongesApi.Controllers
 
             user.Role = roleCanon;
 
-            var link = await _context.HierarchyMembers
-                .FirstOrDefaultAsync(m => m.UserId == id);
+            var link = await _context.HierarchyMembers.FirstOrDefaultAsync(m => m.UserId == id);
             if (link != null) link.Role = roleCanon;
 
             await _context.SaveChangesAsync();

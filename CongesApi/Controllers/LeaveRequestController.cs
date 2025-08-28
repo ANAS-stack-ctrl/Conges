@@ -376,7 +376,32 @@ public class LeaveRequestController : ControllerBase
         if (await _db.Approvals.AnyAsync(a => a.LeaveRequestId == leaveRequestId))
             return;
 
-        // Construire le plan avec un seul approbateur / niveau
+        // --- patch MANAGER: forcer Director/Pending quand c’est un manager qui demande
+        if (string.Equals(req.User.Role, "Manager", StringComparison.OrdinalIgnoreCase))
+        {
+            // (facultatif) récupérer un directeur de la même hiérarchie si besoin d'afficher plus tard
+            var directorId = await _db.Users.AsNoTracking()
+                .Where(u => u.Role == "Director" && u.HierarchyId == req.HierarchyId)
+                .Select(u => (int?)u.UserId)
+                .FirstOrDefaultAsync();
+
+            _db.Approvals.Add(new Approval
+            {
+                LeaveRequestId = req.LeaveRequestId,
+                Level = "Director",
+                Status = "Pending",
+                NextApprovalOrder = 1,
+                Comments = string.Empty
+            });
+
+            req.Status = "En attente";
+            req.CurrentStage = "Director";
+            await _db.SaveChangesAsync();
+            return;
+        }
+        // --- fin patch
+
+        // Construire le plan standard via le routeur
         var plan = await _router.BuildPlanAsync(req);
 
         if (plan.Count == 0)
@@ -395,8 +420,8 @@ public class LeaveRequestController : ControllerBase
             {
                 LeaveRequestId = req.LeaveRequestId,
                 Level = level,           // "Manager" | "Director" | "RH"
-                Status = status,          // Serial: 1er Pending, suivants Blocked ; Parallel: tous Pending
-                NextApprovalOrder = order,           // Serial: 1..n ; Parallel: 1
+                Status = status,         // Serial: 1er Pending, suivants Blocked ; Parallel: tous Pending
+                NextApprovalOrder = order,
                 Comments = string.Empty,
                 // si tu as un champ ApproverUserId, renseigne-le ici
                 // ApproverUserId   = approverId
@@ -494,4 +519,22 @@ public class LeaveRequestController : ControllerBase
 
         return Ok(data);
     }
+    // GET: /api/LeaveRequest/check-overlap?userId=...&startDate=...&endDate=...
+    [HttpGet("check-overlap")]
+    public async Task<IActionResult> CheckOverlap([FromQuery] int userId,
+                                                  [FromQuery] DateTime startDate,
+                                                  [FromQuery] DateTime endDate)
+    {
+        if (startDate.Date > endDate.Date)
+            return BadRequest("startDate > endDate");
+
+        var blocking = new[] { "En attente", "Approuvée" };
+
+        bool exists = await _db.LeaveRequests
+            .Where(r => r.UserId == userId && blocking.Contains(r.Status))
+            .AnyAsync(r => startDate.Date <= r.EndDate.Date && r.StartDate.Date <= endDate.Date);
+
+        return Ok(new { overlap = exists });
+    }
+
 }

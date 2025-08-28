@@ -270,6 +270,7 @@ export function getHierarchyCandidates(id, role) {
   const qs = role ? `?role=${encodeURIComponent(role)}` : "";
   return apiGet(`/Hierarchy/${id}/candidates${qs}`);
 }
+
 // ─────────────────────────────────────────────────────────────
 // Manager ↔ Employee assignment
 // ─────────────────────────────────────────────────────────────
@@ -281,6 +282,64 @@ export const setManagerAssignment = (hierarchyId, employeeUserId, managerUserId)
 
 export const clearManagerAssignment = (hierarchyId, employeeUserId) =>
   apiDelete(`/Hierarchy/${hierarchyId}/manager-assignments/${employeeUserId}`);
+
+// ─────────────────────────────────────────────────────────────
+// DÉLÉGATIONS MANAGER  (⚠️ endpoints en PLURIEL)
+// ─────────────────────────────────────────────────────────────
+export async function dirListMembers(directorId) {
+  const r = await fetch(`${API_BASE}/ManagerAssignment/by-director/${directorId}/members`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json(); // { managers: [...], employees: [...] }
+}
+
+export async function dirListDelegations(directorId) {
+  const r = await fetch(`${API_BASE}/ManagerDelegations/by-director/${directorId}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json(); // [{ managerDelegationId, managerName, delegateName, startDate, endDate, active }]
+}
+
+export async function dirCreateDelegation(payload) {
+  // payload: { directorId, managerUserId, delegateManagerUserId, startDate, endDate }
+  const r = await fetch(`${API_BASE}/ManagerDelegations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function dirEndDelegation(delegationId) {
+  const r = await fetch(`${API_BASE}/ManagerDelegations/${delegationId}/end`, { method: "POST" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// (optionnel – badge d’intérim côté manager)
+export async function getActingFor(userId) {
+  const r = await fetch(`${API_BASE}/ManagerDelegations/acting-for/${userId}`);
+  if (!r.ok) return []; // pas bloquant
+  return r.json();      // ex: [{ managerUserId, managerName, endDate }]
+}
+// ... le reste de ton fichier est inchangé
+
+export const updateUser = (id, { role, hierarchyId }) => {
+  // role: string | undefined
+  // hierarchyId: string | null | undefined
+  //  - undefined => ne pas toucher
+  //  - ""       => retirer (côté API: clear)
+  //  - "2"      => setter sur 2 (ou "H1" / "Nom")
+  const body = {};
+  if (typeof role === "string") body.role = role.trim();
+
+  if (hierarchyId !== undefined) {
+    // on transmet exactement "" pour retirer, sinon un string
+    if (hierarchyId === null || hierarchyId === "") body.hierarchyId = "";
+    else body.hierarchyId = String(hierarchyId);
+  }
+
+  return apiPut(`/User/${id}`, body);
+}
 
 // ─────────────────────────────────────────────────────────────
 // exports utilitaires

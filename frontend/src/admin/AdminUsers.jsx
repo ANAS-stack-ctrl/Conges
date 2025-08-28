@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { apiGet, apiPut, apiDelete } from "./api";
+import { apiGet, apiDelete, updateUser } from "./api";
 import { useToast } from "../ui/ToastProvider";
 import { useConfirm } from "../ui/ConfirmProvider";
 
@@ -48,23 +48,30 @@ export default function AdminUsers() {
 
   const onRoleChange = async (u, role) => {
     try {
-      await apiPut(`/User/${u.userId}`, { ...u, role, hierarchyId: u.hierarchyId ?? null });
+      await updateUser(u.userId, { role }); // payload minimal
       setItems((prev) => prev.map((x) => (x.userId === u.userId ? { ...x, role } : x)));
       toast.ok("Rôle mis à jour.");
-    } catch {
-      toast.error("Échec de mise à jour du rôle.");
+    } catch (e) {
+      toast.error(typeof e?.message === "string" ? e.message : "Échec de mise à jour du rôle.");
     }
   };
 
-  const onHierarchyChange = async (u, hierarchyId) => {
+  const onHierarchyChange = async (u, value) => {
+    // value = "" (retirer) ou "2" (setter)
     try {
-      await apiPut(`/User/${u.userId}`, { ...u, hierarchyId: Number(hierarchyId) });
+      const payload = { hierarchyId: value === "" ? "" : String(value) };
+      await updateUser(u.userId, payload);
+
       setItems((prev) =>
-        prev.map((x) => (x.userId === u.userId ? { ...x, hierarchyId: Number(hierarchyId) } : x))
+        prev.map((x) =>
+          x.userId === u.userId
+            ? { ...x, hierarchyId: value === "" ? null : Number(value) }
+            : x
+        )
       );
       toast.ok("Hiérarchie mise à jour.");
-    } catch {
-      toast.error("Échec de mise à jour de la hiérarchie.");
+    } catch (e) {
+      toast.error(typeof e?.message === "string" ? e.message : "Échec de mise à jour de la hiérarchie.");
     }
   };
 
@@ -119,9 +126,7 @@ export default function AdminUsers() {
             <tbody>
               {filtered.map((u) => (
                 <tr key={u.userId}>
-                  <td>
-                    {u.firstName} {u.lastName}
-                  </td>
+                  <td>{u.firstName} {u.lastName}</td>
                   <td>{u.email}</td>
                   <td>
                     <select
@@ -129,21 +134,19 @@ export default function AdminUsers() {
                       onChange={(e) => onRoleChange(u, e.target.value)}
                     >
                       {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
+                        <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
                   </td>
                   <td>
                     <select
-                      value={u.hierarchyId || ""}
+                      value={u.hierarchyId ?? ""} // important: "" quand null
                       onChange={(e) => onHierarchyChange(u, e.target.value)}
                     >
                       <option value="">—</option>
                       {hierarchies.map((h) => (
                         <option key={h.hierarchyId} value={h.hierarchyId}>
-                          {h.name}
+                          {h.code || h.name}
                         </option>
                       ))}
                     </select>

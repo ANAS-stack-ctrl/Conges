@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5dbc505931ac3771458301f930d2a3e316db830")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+657ca953f51a5fc249817fae5cbf74563bdd8182")]
 [assembly: System.Reflection.AssemblyProductAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CongesApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

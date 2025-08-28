@@ -7,7 +7,12 @@ import {
   actOnApproval,
   getRoleStats,
   downloadRequestPdf,
-  API_BASE,               // base API pour les appels d'affectation
+  API_BASE,
+  // ↓↓↓ fonctions d’API pour la délégation (ajoute-les dans admin/api)
+  dirListMembers,
+  dirListDelegations,
+  dirCreateDelegation,
+  dirEndDelegation,
 } from "./admin/api";
 import { useNavigate } from "react-router-dom";
 import { useConfirm } from "./ui/ConfirmProvider";
@@ -42,10 +47,22 @@ export default function DirectorDashboard({ user, onLogout }) {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [assignBusy, setAssignBusy] = useState(false);
 
-  // hiérarchie du directeur (résolue même si pas fournie dans props.user)
+  // Hiérarchie du directeur (résolue même si pas fournie dans props.user)
   const [resolvedHierarchyId, setResolvedHierarchyId] = useState(
     user?.hierarchyId ?? user?.HierarchyId ?? null
   );
+
+  // ─────────────────────────────────────────────────────────────
+  // Bloc "Délégations (managers en congé)"
+  // ─────────────────────────────────────────────────────────────
+  const [dlLoading, setDlLoading] = useState(false);
+  const [dlManagers, setDlManagers] = useState([]);      // mêmes managers que ci-dessus mais via endpoint dirListMembers
+  const [delegations, setDelegations] = useState([]);    // liste des délégations
+  const [mOnLeave, setMOnLeave] = useState("");          // manager en congé
+  const [mDelegate, setMDelegate] = useState("");        // manager délégué
+  const [dStart, setDStart] = useState("");
+  const [dEnd, setDEnd] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return rows;
@@ -118,7 +135,9 @@ export default function DirectorDashboard({ user, onLogout }) {
         .filter((m) => (m.role || m.Role) === "Employee")
         .map((m) => ({
           userId: m.userId ?? m.UserId,
-          fullName: (m.fullName ?? m.FullName) || `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
+          fullName:
+            (m.fullName ?? m.FullName) ||
+            `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
           email: m.email ?? m.Email,
         }));
 
@@ -126,7 +145,9 @@ export default function DirectorDashboard({ user, onLogout }) {
         .filter((m) => (m.role || m.Role) === "Manager")
         .map((m) => ({
           userId: m.userId ?? m.UserId,
-          fullName: (m.fullName ?? m.FullName) || `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
+          fullName:
+            (m.fullName ?? m.FullName) ||
+            `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
           email: m.email ?? m.Email,
         }));
 
@@ -209,11 +230,7 @@ export default function DirectorDashboard({ user, onLogout }) {
       await loadMembersAndAssignments();
     } catch (e) {
       console.error(e);
-      toast.error(
-        typeof e?.message === "string" && e.message.trim()
-          ? e.message
-          : "Échec de l’affectation."
-      );
+      toast.error(typeof e?.message === "string" && e.message.trim() ? e.message : "Échec de l’affectation.");
     } finally {
       setAssignBusy(false);
     }
@@ -229,9 +246,7 @@ export default function DirectorDashboard({ user, onLogout }) {
     if (!ask) return;
 
     try {
-      const res = await fetch(`${API_BASE}/ManagerAssignment/${assignmentId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`${API_BASE}/ManagerAssignment/${assignmentId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text());
       toast.ok("Affectation supprimée.");
       await loadMembersAndAssignments();
@@ -241,12 +256,92 @@ export default function DirectorDashboard({ user, onLogout }) {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // DÉLÉGATIONS — chargement (managers + délégations)
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!user?.userId) return;
+      try {
+        setDlLoading(true);
+        const [mem, dels] = await Promise.all([
+          dirListMembers(user.userId),       // { managers, employees }
+          dirListDelegations(user.userId),   // [{ managerDelegationId, managerName, delegateName, startDate, endDate, active }]
+        ]);
+        if (!alive) return;
+        setDlManagers(mem?.managers || []);
+        setDelegations(Array.isArray(dels) ? dels : []);
+      } catch (e) {
+        console.error(e);
+        toast.error("Impossible de charger les délégations.");
+      } finally {
+        setDlLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user?.userId, toast]);
+
+  async function createDelegation() {
+    if (!mOnLeave || !mDelegate) return toast.warn("Choisissez les deux managers.");
+    if (mOnLeave === mDelegate) return toast.warn("Le manager délégué doit être différent.");
+    if (!dStart || !dEnd) return toast.warn("Renseignez la période de délégation.");
+    if (new Date(dEnd) < new Date(dStart)) return toast.warn("La date de fin doit être ≥ à la date de début.");
+
+    const ask = await confirm({
+      title: "Créer une délégation",
+      message: "Confirmez-vous la délégation sur la période indiquée ?",
+      okText: "Créer",
+      variant: "primary",
+    });
+    if (!ask) return;
+
+    try {
+      setCreating(true);
+      await dirCreateDelegation({
+        directorId: user.userId,
+        managerUserId: Number(mOnLeave),
+        delegateManagerUserId: Number(mDelegate),
+        startDate: dStart,
+        endDate: dEnd,
+      });
+      toast.ok("Délégation créée ✅");
+      setMOnLeave("");
+      setMDelegate("");
+      setDStart("");
+      setDEnd("");
+      const dels = await dirListDelegations(user.userId);
+      setDelegations(Array.isArray(dels) ? dels : []);
+    } catch (e) {
+      toast.error(e?.message || "Création de la délégation impossible.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function endDelegation(id) {
+    const ask = await confirm({
+      title: "Terminer la délégation",
+      message: "Mettre fin à cette délégation maintenant ?",
+      okText: "Terminer",
+      variant: "danger",
+    });
+    if (!ask) return;
+
+    try {
+      await dirEndDelegation(id);
+      toast.ok("Délégation terminée.");
+      const dels = await dirListDelegations(user.userId);
+      setDelegations(Array.isArray(dels) ? dels : []);
+    } catch (e) {
+      toast.error(e?.message || "Fin de la délégation impossible.");
+    }
+  }
+
   // Validation classique (inchangée)
   const openProof = (path) => {
     if (!path) return;
-    const url = path.startsWith("http")
-      ? path
-      : `${FILE_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = path.startsWith("http") ? path : `${FILE_BASE}${path.startsWith("/") ? path : `/${path}`}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -323,7 +418,108 @@ export default function DirectorDashboard({ user, onLogout }) {
           <div className="card">❌ Rejetées aujourd’hui : <strong>{todayRejected}</strong></div>
         </section>
 
-        {/* Bloc d’affectation Manager ⇢ Employés */}
+        {/* ─────────────────────────────────────────────────────────
+            Bloc DÉLÉGATIONS : manager en congé → manager délégué
+           ───────────────────────────────────────────────────────── */}
+        <section className="panel" style={{ marginBottom: 18 }}>
+          <h3>Délégations (managers en congé)</h3>
+
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 12 }}>
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Manager en congé
+                <select value={mOnLeave} onChange={(e) => setMOnLeave(e.target.value)}>
+                  <option value="">— Sélectionner —</option>
+                  {dlManagers.map((m) => (
+                    <option key={m.UserId || m.userId} value={m.UserId || m.userId}>
+                      {(m.fullName || m.FullName) ??
+                        `${m.FirstName || m.firstName || ""} ${m.LastName || m.lastName || ""}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Manager délégué
+                <select value={mDelegate} onChange={(e) => setMDelegate(e.target.value)}>
+                  <option value="">— Sélectionner —</option>
+                  {dlManagers.map((m) => (
+                    <option key={m.UserId || m.userId} value={m.UserId || m.userId}>
+                      {(m.fullName || m.FullName) ??
+                        `${m.FirstName || m.firstName || ""} ${m.LastName || m.lastName || ""}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Début
+                <input type="date" value={dStart} onChange={(e) => setDStart(e.target.value)} />
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Fin
+                <input type="date" value={dEnd} onChange={(e) => setDEnd(e.target.value)} />
+              </label>
+
+              <div style={{ display: "flex", alignItems: "end" }}>
+                <button onClick={createDelegation} disabled={creating}>
+                  {creating ? "Création…" : "Créer"}
+                </button>
+              </div>
+            </div>
+            <p style={{ marginTop: 8, color: "#666" }}>
+              Pendant la période, le manager délégué remplace le manager en congé pour valider ses
+              demandes et celles des employés qui lui sont associés. À la fin, tout redevient automatique.
+            </p>
+          </div>
+
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Manager en congé</th>
+                  <th>Manager délégué</th>
+                  <th>Du</th>
+                  <th>Au</th>
+                  <th>Statut</th>
+                  <th style={{ width: 120 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dlLoading ? (
+                  <tr><td colSpan={6}>Chargement…</td></tr>
+                ) : delegations.length === 0 ? (
+                  <tr><td colSpan={6} className="empty">Aucune délégation.</td></tr>
+                ) : (
+                  delegations.map((d) => (
+                    <tr key={d.managerDelegationId || d.ManagerDelegationId}>
+                      <td>{d.managerName}</td>
+                      <td>{d.delegateName}</td>
+                      <td>{new Date(d.startDate).toLocaleDateString()}</td>
+                      <td>{new Date(d.endDate).toLocaleDateString()}</td>
+                      <td>{d.active ? "Active" : "Terminée"}</td>
+                      <td>
+                        {d.active ? (
+                          <button
+                            className="ghost"
+                            onClick={() => endDelegation(d.managerDelegationId || d.ManagerDelegationId)}
+                          >
+                            Terminer
+                          </button>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ─────────────────────────────────────────────────────────
+            Bloc Affectations Manager ⇢ Employés (existant)
+           ───────────────────────────────────────────────────────── */}
         <section className="panel" style={{ marginBottom: 18 }}>
           <h3>Affectations manager (ma hiérarchie)</h3>
 
@@ -425,7 +621,9 @@ export default function DirectorDashboard({ user, onLogout }) {
           </div>
         </section>
 
-        {/* Bloc À valider */}
+        {/* ─────────────────────────────────────────────────────────
+            Bloc À valider (inchangé)
+           ───────────────────────────────────────────────────────── */}
         <section className="bloc">
           <div className="bloc-head">
             <h3>À valider</h3>
