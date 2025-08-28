@@ -1,199 +1,17 @@
-import React, { useEffect, useState } from "react";
-import "../AdminDashboard.css"; // réutilise la même grille/aside
+import React, { useEffect, useMemo, useState } from "react";
+import "../AdminDashboard.css";
 import logo from "../assets/logo.png";
 import usercircle from "../assets/User.png";
 import { useToast } from "../ui/ToastProvider";
 import { useNavigate } from "react-router-dom";
 
-/**
- * Editeur du modèle PDF (texte HTML/Handlebars-like)
- * Backend attendu :
- *   GET  /api/PdfTemplate          -> { template: string }
- *   PUT  /api/PdfTemplate          -> { template: string } (sauvegarde)
- *   POST /api/PdfTemplate/preview  -> { html: string } (optionnel pour un rendu prévisualisé)
- */
-const API_BASE =
-  process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "https://localhost:7233";
-
-export default function AdminPdfTemplate() {
-  const [tpl, setTpl] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [preview, setPreview] = useState("");
-  const toast = useToast();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE}/api/PdfTemplate`);
-        if (!res.ok) throw new Error("Impossible de charger le modèle PDF.");
-        const json = await res.json();
-        if (alive) setTpl(json?.template || defaultTemplate);
-      } catch (e) {
-        if (alive) setTpl(defaultTemplate);
-        toast.error(e?.message || "Erreur de chargement du modèle.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [toast]);
-
-  async function save() {
-    try {
-      setSaving(true);
-      const res = await fetch(`${API_BASE}/api/PdfTemplate`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template: tpl }),
-      });
-      if (!res.ok) throw new Error("Échec de la sauvegarde du modèle.");
-      toast.ok("Modèle enregistré ✅");
-    } catch (e) {
-      toast.error(e?.message || "Erreur de sauvegarde.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function makePreview() {
-    // Optionnel : si ton backend a un endpoint de preview.
-    try {
-      const res = await fetch(`${API_BASE}/api/PdfTemplate/preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template: tpl }),
-      });
-      if (!res.ok) throw new Error("Impossible de générer la prévisualisation.");
-      const json = await res.json();
-      setPreview(json?.html || "");
-    } catch (e) {
-      // fallback : on affiche le template brut
-      setPreview(tpl);
-      toast.info("Preview simplifiée (fallback).");
-    }
-  }
-
-  return (
-    <div className="admin-dashboard">
-      <aside className="sidebar">
-        <img src={logo} alt="logo" className="logo" />
-        <ul>
-          <li onClick={() => navigate("/admin")} style={{ cursor: "pointer" }}>
-            📊 Tableau de bord
-          </li>
-          <li onClick={() => navigate("/admin/users")} style={{ cursor: "pointer" }}>
-            👥 Utilisateurs
-          </li>
-          <li onClick={() => navigate("/admin/leave-types")} style={{ cursor: "pointer" }}>
-            🏷️ Types de congé
-          </li>
-          <li onClick={() => navigate("/admin/blackouts")} style={{ cursor: "pointer" }}>
-            🚫 Blackout periods
-          </li>
-          <li className="active">📄 Modèle PDF</li>
-          <li onClick={() => navigate("/settings")} style={{ cursor: "pointer" }}>
-            ⚙️ Paramètres
-          </li>
-          <li onClick={() => navigate(-1)} style={{ cursor: "pointer" }}>
-            ⬅️ Retour
-          </li>
-        </ul>
-        <footer className="footer">© 2025 – LeaveManager</footer>
-      </aside>
-
-      <main className="main-content">
-        <header className="dashboard-header">
-          <h2>Modèles PDF</h2>
-          <div className="user-info">
-            <img src={usercircle} alt="user" />
-            <span>Admin</span>
-          </div>
-        </header>
-
-        <section className="panel" style={{ display: "grid", gap: 12 }}>
-          <p>
-            Configurez le HTML du document de congé. Vous pouvez utiliser des
-            placeholders (double accolades) qui seront remplacés côté serveur.
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            <li>
-              Exemple place­holders :
-              {" "}
-              <code>{'{{ request.employee }}'}</code>,{" "}
-              <code>{'{{ request.type }}'}</code>,{" "}
-              <code>{'{{ request.startDate }}'}</code>,{" "}
-              <code>{'{{ request.endDate }}'}</code>,{" "}
-              <code>{'{{ request.requestedDays }}'}</code>,{" "}
-              <code>{'{{ request.isHalfDay }}'}</code>
-            </li>
-            <li>
-              Historique d’approbation :
-              {" "}
-              <code>{'{{#each approvals}}'}</code> … <code>{'{{/each}}'}</code> avec
-              {" "}
-              <code>{'{{ this.level }}'}</code>, <code>{'{{ this.status }}'}</code>,{" "}
-              <code>{'{{ this.approvedByName }}'}</code>,{" "}
-              <code>{'{{ this.actionDate }}'}</code>,{" "}
-              <code>{'{{ this.comments }}'}</code>.
-            </li>
-            <li>
-              Logo appli :
-              {" "}
-              <code>{'{{ app.logoUrl }}'}</code>
-            </li>
-          </ul>
-
-          {loading ? (
-            <div className="card">Chargement…</div>
-          ) : (
-            <>
-              <textarea
-                value={tpl}
-                onChange={(e) => setTpl(e.target.value)}
-                style={{
-                  width: "100%",
-                  minHeight: 360,
-                  resize: "vertical",
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                  fontSize: 14,
-                  borderRadius: 12,
-                  border: "1px solid #ddd",
-                  padding: 12,
-                }}
-                spellCheck={false}
-              />
-              <div className="btns" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={save} disabled={saving} style={{ background: "#7b44c3", color: "#fff", border: "none", borderRadius: 12, padding: "10px 16px" }}>
-                  💾 Enregistrer
-                </button>
-                <button className="ghost" onClick={makePreview} style={{ borderRadius: 12, padding: "10px 16px" }}>
-                  👁️ Prévisualiser
-                </button>
-                <button className="danger" onClick={() => setTpl(defaultTemplate)} style={{ borderRadius: 12, padding: "10px 16px" }}>
-                  ↩️ Revenir au modèle par défaut
-                </button>
-              </div>
-
-              {!!preview && (
-                <div className="panel" style={{ marginTop: 12 }}>
-                  <h4>Aperçu (HTML)</h4>
-                  <div
-                    style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, background: "#fff" }}
-                    dangerouslySetInnerHTML={{ __html: preview }}
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
-    </div>
-  );
-}
+import {
+  listPdfTemplates,
+  getPdfTemplate,
+  createPdfTemplate,
+  updatePdfTemplate,
+  previewPdfTemplate, // optionnel (si backend expose /PdfTemplate/preview)
+} from "../admin/api";
 
 const defaultTemplate = `
 <!doctype html>
@@ -261,3 +79,243 @@ const defaultTemplate = `
 </body>
 </html>
 `.trim();
+
+export default function AdminPdfTemplate() {
+  const toast = useToast();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [templateId, setTemplateId] = useState(null);
+  const [name, setName] = useState("");
+  const [html, setHtml] = useState(defaultTemplate);
+  const [isDefault, setIsDefault] = useState(false);
+
+  const [templates, setTemplates] = useState([]);
+  const [preview, setPreview] = useState("");
+
+  // Charger la liste puis charger le premier (ou garder un nouveau brouillon)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const list = await listPdfTemplates();
+        if (!alive) return;
+        setTemplates(list || []);
+        if ((list || []).length > 0) {
+          const first = list[0];
+          const full = await getPdfTemplate(first.pdfTemplateId ?? first.PdfTemplateId ?? first.id);
+          if (!alive) return;
+          setTemplateId(full.pdfTemplateId ?? full.PdfTemplateId ?? full.id);
+          setName(full.name || "");
+          setHtml(full.html || defaultTemplate);
+          setIsDefault(!!full.isDefault);
+        } else {
+          // aucun template existant → nouveau
+          setTemplateId(null);
+          setName("Modèle par défaut");
+          setHtml(defaultTemplate);
+          setIsDefault(true);
+        }
+      } catch (e) {
+        if (alive) toast.error(e?.message || "Erreur de chargement.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [toast]);
+
+  async function handleSave() {
+    try {
+      setSaving(true);
+      const payload = { name, html, isDefault };
+      if (templateId) {
+        await updatePdfTemplate(templateId, payload); // IMPORTANT: passer l'id
+      } else {
+        const created = await createPdfTemplate(payload);
+        const id = created?.id ?? created?.pdfTemplateId ?? created?.PdfTemplateId;
+        if (id) setTemplateId(id);
+        // recharger la liste
+        const list = await listPdfTemplates();
+        setTemplates(list || []);
+      }
+      toast.ok("Modèle sauvegardé.");
+    } catch (e) {
+      toast.error(e?.message || "Échec de la sauvegarde du modèle.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePreview() {
+    try {
+      const res = await previewPdfTemplate({ html, sampleData: {} });
+      setPreview(res?.html || html);
+    } catch {
+      setPreview(html); // fallback client
+      toast.info("Prévisualisation simplifiée (fallback).");
+    }
+  }
+
+  async function handleSelectChange(e) {
+    const id = Number(e.target.value) || null;
+    if (!id) {
+      // Nouveau brouillon
+      setTemplateId(null);
+      setName("");
+      setHtml(defaultTemplate);
+      setIsDefault(false);
+      setPreview("");
+      return;
+    }
+    try {
+      const full = await getPdfTemplate(id);
+      setTemplateId(full.pdfTemplateId ?? full.PdfTemplateId ?? full.id);
+      setName(full.name || "");
+      setHtml(full.html || "");
+      setIsDefault(!!full.isDefault);
+      setPreview("");
+    } catch (e) {
+      toast.error(e?.message || "Impossible de charger le modèle sélectionné.");
+    }
+  }
+
+  const selectValue = useMemo(() => String(templateId || ""), [templateId]);
+
+  return (
+    <div className="admin-dashboard">
+      <aside className="sidebar">
+        <img src={logo} alt="logo" className="logo" />
+        <ul>
+          <li onClick={() => navigate("/admin")} style={{ cursor: "pointer" }}>
+            📊 Tableau de bord
+          </li>
+          <li onClick={() => navigate("/admin/users")} style={{ cursor: "pointer" }}>
+            👥 Utilisateurs
+          </li>
+          <li onClick={() => navigate("/admin/leave-types")} style={{ cursor: "pointer" }}>
+            🏷️ Types de congé
+          </li>
+          <li onClick={() => navigate("/admin/blackouts")} style={{ cursor: "pointer" }}>
+            🚫 Blackout periods
+          </li>
+          <li className="active">📄 Modèles PDF</li>
+          <li onClick={() => navigate("/settings")} style={{ cursor: "pointer" }}>
+            ⚙️ Paramètres
+          </li>
+          <li onClick={() => navigate(-1)} style={{ cursor: "pointer" }}>
+            ⬅️ Retour
+          </li>
+        </ul>
+        <footer className="footer">© 2025 – LeaveManager</footer>
+      </aside>
+
+      <main className="main-content">
+        <header className="dashboard-header">
+          <h2>Modèles PDF</h2>
+          <div className="user-info">
+            <img src={usercircle} alt="user" />
+            <span>Admin</span>
+          </div>
+        </header>
+
+        <section className="panel" style={{ display: "grid", gap: 12 }}>
+          <p>
+            Édite le HTML du modèle. Utilise les placeholders (double accolades) remplacés côté serveur.
+          </p>
+
+          {loading ? (
+            <div className="card">Chargement…</div>
+          ) : (
+            <>
+              {/* Sélecteur simple des modèles existants + option "Nouveau" */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label>Modèle :</label>
+                <select value={selectValue} onChange={handleSelectChange}>
+                  <option value="">— Nouveau —</option>
+                  {(templates || []).map((t) => {
+                    const id = t.pdfTemplateId ?? t.PdfTemplateId ?? t.id;
+                    return (
+                      <option key={id} value={id}>
+                        {t.name} {t.isDefault ? "• (par défaut)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <label style={{ marginLeft: 16 }}>Nom :</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nom du modèle"
+                  style={{ minWidth: 240 }}
+                />
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={isDefault}
+                    onChange={(e) => setIsDefault(e.target.checked)}
+                  />
+                  Modèle par défaut
+                </label>
+              </div>
+
+              <textarea
+                value={html}
+                onChange={(e) => setHtml(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: 360,
+                  resize: "vertical",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontSize: 14,
+                  borderRadius: 12,
+                  border: "1px solid #ddd",
+                  padding: 12,
+                }}
+                spellCheck={false}
+              />
+
+              <div className="btns" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{ background: "#7b44c3", color: "#fff", border: "none", borderRadius: 12, padding: "10px 16px" }}
+                >
+                  💾 Enregistrer
+                </button>
+                <button
+                  className="ghost"
+                  onClick={handlePreview}
+                  style={{ borderRadius: 12, padding: "10px 16px" }}
+                >
+                  👁️ Prévisualiser
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => { setHtml(defaultTemplate); setPreview(""); }}
+                  style={{ borderRadius: 12, padding: "10px 16px" }}
+                >
+                  ↩️ Modèle par défaut
+                </button>
+              </div>
+
+              {!!preview && (
+                <div className="panel" style={{ marginTop: 12 }}>
+                  <h4>Aperçu (HTML)</h4>
+                  <div
+                    style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, background: "#fff" }}
+                    dangerouslySetInnerHTML={{ __html: preview }}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}

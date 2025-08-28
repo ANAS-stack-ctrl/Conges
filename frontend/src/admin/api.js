@@ -235,6 +235,9 @@ export const getPdfTemplate     = (id) => apiGet(`/PdfTemplate/${id}`);
 export const createPdfTemplate  = (tpl) => apiPost("/PdfTemplate", tpl);
 export const updatePdfTemplate  = (id, tpl) => apiPut(`/PdfTemplate/${id}`, tpl);
 export const deletePdfTemplate  = (id) => apiDelete(`/PdfTemplate/${id}`);
+// optionnel: aperçu serveur
+export const previewPdfTemplate = (payload) =>
+  apiPost("/PdfTemplate/preview", payload); // { html, sampleData? }
 
 // ─────────────────────────────────────────────────────────────
 // Hierarchies (Equipes / Départements) — CRUD + membres
