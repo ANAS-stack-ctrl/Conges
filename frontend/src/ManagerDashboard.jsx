@@ -11,7 +11,6 @@ const API_BASE =
   process.env.REACT_APP_API_URL?.replace(/\/$/, "") || "https://localhost:7233";
 const FILE_BASE = API_BASE;
 
-// même logique que l'EmployeeDashboard
 const isApproved = (status) => {
   const s = (status || "").toLowerCase();
   return s.includes("approuv") || s.includes("valid");
@@ -33,12 +32,10 @@ export default function ManagerDashboard({ user, onLogout }) {
   const [todayApproved, setTodayApproved] = useState(0);
   const [todayRejected, setTodayRejected] = useState(0);
 
-  // ➕ Infos perso du manager (comme EmployeeDashboard)
-  const [myAnnualBalance, setMyAnnualBalance] = useState(null); // nombre ou null
-  const [recentRequests, setRecentRequests] = useState([]);     // tableau
+  const [myAnnualBalance, setMyAnnualBalance] = useState(null);
+  const [recentRequests, setRecentRequests] = useState([]);
   const [auxLoading, setAuxLoading] = useState(true);
 
-  // ---------- Helpers
   const openProof = (path) => {
     if (!path) return;
     const url = path.startsWith("http")
@@ -48,23 +45,27 @@ export default function ManagerDashboard({ user, onLogout }) {
   };
 
   const openPdf = (id) => {
+    // PDF perso : OK seulement côté "Vos demandes récentes" (si approuvées)
     const url = `${FILE_BASE}/api/export/leave-request/${id}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  // ---------- Charge la file d’attente + stats jour
   const loadQueue = useCallback(async () => {
     setLoading(true);
     setErr("");
     try {
+      // 👉 le backend filtre par la hiérarchie du reviewerUserId
       const [data, stats] = await Promise.all([
-        getPendingApprovals({
-          userId: user?.userId,
-          role: user?.role || "Manager",
-        }),
+        getPendingApprovals({ role: "Manager", reviewerUserId: user?.userId }),
         getRoleStats("Manager"),
       ]);
-      setRows(data || []);
+
+      // Sécurité côté UI : on exclut les demandes créées par soi-même
+      const safe = Array.isArray(data)
+        ? data.filter((d) => d.userId !== user?.userId && d.createdBy !== user?.userId)
+        : [];
+
+      setRows(safe);
       setTodayApproved(stats?.approvedToday ?? 0);
       setTodayRejected(stats?.rejectedToday ?? 0);
     } catch (e) {
@@ -73,14 +74,12 @@ export default function ManagerDashboard({ user, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, [user?.userId, user?.role]);
+  }, [user?.userId]);
 
-  // ---------- Charge solde (même logique qu'EmployeeDashboard) + dernières demandes
   const loadPersonalBlocks = useCallback(async () => {
     if (!user?.userId) return;
     setAuxLoading(true);
 
-    // 1) Solde de congé annuel, même stratégie que l’EmployeeDashboard
     async function fetchAnnualBalance() {
       try {
         const res = await fetch(`${API_BASE}/api/LeaveBalance/user/${user.userId}`);
@@ -88,28 +87,29 @@ export default function ManagerDashboard({ user, onLogout }) {
         const raw = await res.json();
 
         const items = Array.isArray(raw)
-          ? raw.map(x => ({
+          ? raw.map((x) => ({
               leaveTypeId: x.leaveTypeId ?? x.LeaveTypeId,
-              leaveType:   x.leaveType   ?? x.LeaveType,
-              balance:     x.balance     ?? x.Balance,
+              leaveType: x.leaveType ?? x.LeaveType,
+              balance: x.balance ?? x.Balance,
             }))
           : [];
 
-        // on cherche le "Congé annuel" par nom (insensible à la casse) ou par id (si tu as fixé l'id=2)
-        const annual = items.find(i =>
-          (typeof i.leaveType === "string" && i.leaveType.toLowerCase() === "congé annuel") ||
-          i.leaveTypeId === 2
+        const annual = items.find(
+          (i) =>
+            (typeof i.leaveType === "string" &&
+              i.leaveType.toLowerCase() === "congé annuel") ||
+            i.leaveTypeId === 2
         );
 
         setMyAnnualBalance(annual ? Number(annual.balance) : 0);
       } catch (e) {
-        // fallback éventuel : endpoint total (au cas où tu veux sommer)
         try {
-          const r2 = await fetch(`${API_BASE}/api/LeaveBalanceAdjustment/user/${user.userId}/current-balance`);
+          const r2 = await fetch(
+            `${API_BASE}/api/LeaveBalanceAdjustment/user/${user.userId}/current-balance`
+          );
           if (r2.ok) {
             const j = await r2.json();
             const total = Number(j?.balance ?? 0);
-            // si tu préfères afficher *uniquement* l’annuel, commente la ligne suivante
             setMyAnnualBalance(total);
             return;
           }
@@ -118,7 +118,6 @@ export default function ManagerDashboard({ user, onLogout }) {
       }
     }
 
-    // 2) Dernières demandes (comme EmployeeDashboard -> /api/LeaveRequest/user/{id})
     async function fetchRecent() {
       try {
         const res = await fetch(`${API_BASE}/api/LeaveRequest/user/${user.userId}`);
@@ -134,10 +133,13 @@ export default function ManagerDashboard({ user, onLogout }) {
     setAuxLoading(false);
   }, [user?.userId]);
 
-  useEffect(() => { loadQueue(); }, [loadQueue]);
-  useEffect(() => { loadPersonalBlocks(); }, [loadPersonalBlocks]);
+  useEffect(() => {
+    loadQueue();
+  }, [loadQueue]);
+  useEffect(() => {
+    loadPersonalBlocks();
+  }, [loadPersonalBlocks]);
 
-  // ---------- Filtre tableau à valider
   const filtered = useMemo(() => {
     if (!filter.trim()) return rows;
     const q = filter.toLowerCase();
@@ -149,7 +151,6 @@ export default function ManagerDashboard({ user, onLogout }) {
     );
   }, [rows, filter]);
 
-  // ---------- Actions
   async function handle(action, id) {
     const ask = await confirm({
       title: action === "Approve" ? "Approuver la demande" : "Rejeter la demande",
@@ -168,7 +169,7 @@ export default function ManagerDashboard({ user, onLogout }) {
         requestId: id,
         action,
         comment: action === "Reject" ? comment : "",
-        actorUserId: user?.userId,
+        actorUserId: user?.userId,   // IMPORTANT
       });
       setRows((prev) => prev.filter((r) => r.leaveRequestId !== id));
       setSelectedId(null);
@@ -208,10 +209,7 @@ export default function ManagerDashboard({ user, onLogout }) {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="header-actions" style={{ display: "flex", gap: 8 }}>
-
-          </div>
-
+          <div className="header-actions" style={{ display: "flex", gap: 8 }}></div>
           <div className="user-info">
             <img src={usercircle} alt="user" />
             <span>{user?.fullName || "Manager"}</span>
@@ -223,7 +221,7 @@ export default function ManagerDashboard({ user, onLogout }) {
           Demandes en attente de <strong>validation Manager</strong>.
         </p>
 
-        {/* ---- Bloc infos perso (même rendu que l’EmployeeDashboard) */}
+        {/* Bloc infos perso */}
         <section className="panel" style={{ marginBottom: 16 }}>
           <h3>Votre activité</h3>
           {auxLoading ? (
@@ -297,20 +295,14 @@ export default function ManagerDashboard({ user, onLogout }) {
           )}
         </section>
 
-        {/* ---- Stats de validation du jour */}
+        {/* Stats */}
         <section className="stat-cards">
-          <div className="card">
-            🕒 En attente : <strong>{filtered.length}</strong>
-          </div>
-          <div className="card">
-            ✅ Validées aujourd’hui : <strong>{todayApproved}</strong>
-          </div>
-          <div className="card">
-            ❌ Rejetées aujourd’hui : <strong>{todayRejected}</strong>
-          </div>
+          <div className="card">🕒 En attente : <strong>{filtered.length}</strong></div>
+          <div className="card">✅ Validées aujourd’hui : <strong>{todayApproved}</strong></div>
+          <div className="card">❌ Rejetées aujourd’hui : <strong>{todayRejected}</strong></div>
         </section>
 
-        {/* ---- Tableau 'À valider' */}
+        {/* À valider */}
         <section className="bloc">
           <div className="bloc-head">
             <h3>À valider</h3>

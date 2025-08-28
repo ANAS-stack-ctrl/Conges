@@ -4,6 +4,7 @@ using CongesApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CongesApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250827105026_Hierarchies")]
+    partial class Hierarchies
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -65,37 +68,28 @@ namespace CongesApi.Migrations
 
             modelBuilder.Entity("CongesApi.Model.ApprovalDelegation", b =>
                 {
-                    b.Property<int>("DelegationId")
+                    b.Property<int>("ApprovalDelegationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DelegationId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ApprovalDelegationId"));
 
-                    b.Property<DateTime?>("EndDate")
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DelegateUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("FromUserId")
+                    b.Property<int>("OwnerUserId")
                         .HasColumnType("int");
-
-                    b.Property<int?>("HierarchyId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("ToUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("DelegationId");
-
-                    b.HasIndex("FromUserId");
-
-                    b.HasIndex("HierarchyId");
-
-                    b.HasIndex("ToUserId");
+                    b.HasKey("ApprovalDelegationId");
 
                     b.ToTable("ApprovalDelegations");
                 });
@@ -290,36 +284,25 @@ namespace CongesApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HierarchyId"));
 
-                    b.Property<string>("Code")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("HierarchyId");
-
-                    b.HasIndex("Name");
 
                     b.ToTable("Hierarchies");
                 });
 
             modelBuilder.Entity("CongesApi.Model.HierarchyApprovalPolicy", b =>
                 {
-                    b.Property<int>("PolicyId")
+                    b.Property<int>("HierarchyApprovalPolicyId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PolicyId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HierarchyApprovalPolicyId"));
 
                     b.Property<bool>("FallbackToDirector")
                         .HasColumnType("bit");
@@ -335,47 +318,17 @@ namespace CongesApi.Migrations
 
                     b.Property<string>("PeerSelectionMode")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RequiredPeerCount")
                         .HasColumnType("int");
 
-                    b.HasKey("PolicyId");
+                    b.HasKey("HierarchyApprovalPolicyId");
 
                     b.HasIndex("HierarchyId")
                         .IsUnique();
 
                     b.ToTable("HierarchyApprovalPolicies");
-                });
-
-            modelBuilder.Entity("CongesApi.Model.HierarchyMember", b =>
-                {
-                    b.Property<int>("HierarchyMemberId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HierarchyMemberId"));
-
-                    b.Property<int>("HierarchyId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("HierarchyMemberId");
-
-                    b.HasIndex("HierarchyId");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("HierarchyMembers");
                 });
 
             modelBuilder.Entity("CongesApi.Model.Holiday", b =>
@@ -876,32 +829,6 @@ namespace CongesApi.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CongesApi.Model.ApprovalDelegation", b =>
-                {
-                    b.HasOne("CongesApi.Model.User", "FromUser")
-                        .WithMany()
-                        .HasForeignKey("FromUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CongesApi.Model.Hierarchy", "Hierarchy")
-                        .WithMany()
-                        .HasForeignKey("HierarchyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CongesApi.Model.User", "ToUser")
-                        .WithMany()
-                        .HasForeignKey("ToUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("FromUser");
-
-                    b.Navigation("Hierarchy");
-
-                    b.Navigation("ToUser");
-                });
-
             modelBuilder.Entity("CongesApi.Model.AuditLog", b =>
                 {
                     b.HasOne("CongesApi.Model.User", "User")
@@ -966,25 +893,6 @@ namespace CongesApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Hierarchy");
-                });
-
-            modelBuilder.Entity("CongesApi.Model.HierarchyMember", b =>
-                {
-                    b.HasOne("CongesApi.Model.Hierarchy", "Hierarchy")
-                        .WithMany("Members")
-                        .HasForeignKey("HierarchyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CongesApi.Model.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Hierarchy");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CongesApi.Model.LeaveBalance", b =>
@@ -1111,8 +1019,9 @@ namespace CongesApi.Migrations
             modelBuilder.Entity("CongesApi.Model.User", b =>
                 {
                     b.HasOne("CongesApi.Model.Hierarchy", "Hierarchy")
-                        .WithMany()
-                        .HasForeignKey("HierarchyId");
+                        .WithMany("Users")
+                        .HasForeignKey("HierarchyId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CongesApi.Model.UserRole", "UserRole")
                         .WithMany()
@@ -1129,7 +1038,7 @@ namespace CongesApi.Migrations
                 {
                     b.Navigation("ApprovalPolicy");
 
-                    b.Navigation("Members");
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("CongesApi.Model.LeaveRequest", b =>

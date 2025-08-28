@@ -87,7 +87,11 @@ export default function AdminDashboard({ user, onLogout }) {
     { label: "👥 Gérer les utilisateurs", action: () => go("/admin/users", "Ouverture de la gestion des utilisateurs…") },
     { label: "🏷️ Gérer les types de congé", action: () => go("/admin/leave-types", "Ouverture des types de congé…") },
     { label: "📅 Jours fériés", action: () => go("/admin/holidays", "Ouverture des jours fériés…") },
+
+    // 👉 Les deux boutons demandés, côte à côte :
     { label: "➕ Créer un utilisateur", action: () => go("/admin/create-user", "Création d’un utilisateur…") },
+    { label: "🏗️ Créer une hiérarchie", action: () => go("/admin/hierarchies", "Création d’une hiérarchie…") },
+
     { label: "💼 Attribuer un solde", action: () => go("/admin/assign-balance", "Attribution de soldes…") },
     { label: "🚫 Blackout periods", action: () => go("/admin/blackouts", "Ouverture des blackout periods…") },
     { label: "📄 Modèle PDF", action: () => go("/admin/pdf-template", "Ouverture du modèle PDF…") },
@@ -111,13 +115,13 @@ export default function AdminDashboard({ user, onLogout }) {
           <li onClick={actionsRapides[2].action} style={{ cursor: "pointer" }}>
             📅 Jours fériés
           </li>
-          <li onClick={actionsRapides[5].action} style={{ cursor: "pointer" }}>
+          <li onClick={actionsRapides[6].action} style={{ cursor: "pointer" }}>
             🚫 Blackout periods
           </li>
-          <li onClick={actionsRapides[6].action} style={{ cursor: "pointer" }}>
+          <li onClick={actionsRapides[7].action} style={{ cursor: "pointer" }}>
             📄 Modèle PDF
           </li>
-          <li onClick={actionsRapides[7].action} style={{ cursor: "pointer" }}>
+          <li onClick={actionsRapides[8].action} style={{ cursor: "pointer" }}>
             ⚙️ Paramètres
           </li>
           <li

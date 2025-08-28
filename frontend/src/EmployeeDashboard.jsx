@@ -24,10 +24,18 @@ const statusOrder = (s) => {
   return map[s] ?? 3;
 };
 
-// True si la demande est approuvée/validée (autorisé à télécharger le PDF)
+// autorise le PDF si approuvée/validée
 const isApproved = (status) => {
   const s = (status || '').toLowerCase();
   return s.includes('approuv') || s.includes('valid');
+};
+
+// libellé humain pour la période de demi-journée
+const halfLabel = (p) => {
+  const v = String(p || '').trim().toUpperCase();
+  if (['AM', 'MORNING', 'MATIN'].includes(v)) return 'matin';
+  if (['PM', 'AFTERNOON', 'APRES MIDI', 'APRÈS MIDI'].includes(v)) return 'après-midi';
+  return '';
 };
 
 const EmployeeDashboard = ({ user, onLogout }) => {
@@ -91,11 +99,15 @@ const EmployeeDashboard = ({ user, onLogout }) => {
     return statut;
   };
 
-  const displayDays = (req) => {
-    if (typeof req.requestedDays === 'number') {
-      if (req.isHalfDay) return 0.5;
-      return req.requestedDays;
+  // Retourne soit "½ (matin/après-midi)" soit le nombre de jours
+  const renderDays = (req) => {
+    if (req.isHalfDay) {
+      const h = halfLabel(req.halfDayPeriod);
+      return `½${h ? ` (${h})` : ''}`;
     }
+    if (typeof req.requestedDays === 'number') return req.requestedDays;
+
+    // fallback si requestedDays absent
     const sd = new Date(req.startDate);
     const ed = new Date(req.endDate);
     if (isNaN(sd) || isNaN(ed)) return 0;
@@ -103,13 +115,14 @@ const EmployeeDashboard = ({ user, onLogout }) => {
     return Math.max(0, Math.round((ed - sd) / MS) + 1);
   };
 
+  const numericDays = (req) => (req.isHalfDay ? 0.5 : Number(req.requestedDays ?? 0));
+
   const sortedRequests = useMemo(() => {
     const rows = [...leaveRequests];
 
     const getCreated = (r) => r.createdAt ? new Date(r.createdAt) : new Date(r.startDate);
     const sd = (r) => new Date(r.startDate);
     const ed = (r) => new Date(r.endDate);
-    const days = (r) => Number(displayDays(r));
 
     rows.sort((a, b) => {
       switch (sortBy) {
@@ -118,8 +131,8 @@ const EmployeeDashboard = ({ user, onLogout }) => {
         case 'start_desc':return sd(b) - sd(a);
         case 'end_asc':   return ed(a) - ed(b);
         case 'end_desc':  return ed(b) - ed(a);
-        case 'days_asc':  return days(a) - days(b);
-        case 'days_desc': return days(b) - days(a);
+        case 'days_asc':  return numericDays(a) - numericDays(b);
+        case 'days_desc': return numericDays(b) - numericDays(a);
         case 'status': {
           const ca = statusOrder(a.status);
           const cb = statusOrder(b.status);
@@ -142,6 +155,10 @@ const EmployeeDashboard = ({ user, onLogout }) => {
 
   const handleNewRequest = () => navigate('/new-request');
 
+  const balanceText = leaveBalance === null
+    ? 'Chargement...'
+    : `${leaveBalance} jour${Number(leaveBalance) === 1 ? '' : 's'}`;
+
   return (
     <div className="employee-dashboard">
       <aside className="sidebar">
@@ -149,7 +166,6 @@ const EmployeeDashboard = ({ user, onLogout }) => {
         <ul>
           <li>🏠 Dashboard</li>
           <li onClick={handleNewRequest} style={{ cursor: 'pointer' }}>📅 Nouvelle demande</li>
-          
           <li onClick={() => navigate('/settings')} style={{ cursor: 'pointer' }}>⚙️ Paramètres</li>
           <li onClick={onLogout} style={{ cursor: 'pointer' }}>📦 Déconnexion</li>
         </ul>
@@ -171,10 +187,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
         <section className="solde-section">
           <h3>Solde Congé restant</h3>
           <p>
-            → Solde actuel :{' '}
-            <strong>
-              {leaveBalance !== null ? `${leaveBalance} jours` : 'Chargement...'}
-            </strong>
+            → Solde actuel : <strong>{balanceText}</strong>
           </p>
         </section>
 
@@ -216,7 +229,7 @@ const EmployeeDashboard = ({ user, onLogout }) => {
                   <td>{d.leaveType?.name}</td>
                   <td>{new Date(d.startDate).toLocaleDateString()}</td>
                   <td>{new Date(d.endDate).toLocaleDateString()}</td>
-                  <td>{displayDays(d)}</td>
+                  <td>{renderDays(d)}</td>
                   <td>{getStatutEmoji(d.status)}</td>
                   <td>
                     {isApproved(d.status) ? (

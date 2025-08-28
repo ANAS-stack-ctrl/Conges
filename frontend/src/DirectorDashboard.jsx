@@ -29,7 +29,7 @@ export default function DirectorDashboard({ user, onLogout }) {
     if (!filter.trim()) return rows;
     const q = filter.toLowerCase();
     return rows.filter(
-      r =>
+      (r) =>
         (r.employeeFullName || "").toLowerCase().includes(q) ||
         (r.leaveType?.name || "").toLowerCase().includes(q) ||
         (r.status || "").toLowerCase().includes(q)
@@ -41,10 +41,15 @@ export default function DirectorDashboard({ user, onLogout }) {
       setLoading(true);
       setErr("");
       const [data, stats] = await Promise.all([
-        getPendingApprovals("Director"),
+        getPendingApprovals({ role: "Director", reviewerUserId: user?.userId }),
         getRoleStats("Director"),
       ]);
-      setRows(data || []);
+
+      const safe = Array.isArray(data)
+        ? data.filter((d) => d.userId !== user?.userId && d.createdBy !== user?.userId)
+        : [];
+
+      setRows(safe);
       setTodayApproved(stats?.approvedToday ?? 0);
       setTodayRejected(stats?.rejectedToday ?? 0);
     } catch (e) {
@@ -54,9 +59,11 @@ export default function DirectorDashboard({ user, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.userId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const openProof = (path) => {
     if (!path) return;
@@ -67,9 +74,10 @@ export default function DirectorDashboard({ user, onLogout }) {
   async function handle(action, id) {
     const ask = await confirm({
       title: action === "Approve" ? "Approuver la demande" : "Rejeter la demande",
-      message: action === "Approve"
-        ? "Confirmez-vous l’approbation de cette demande ?"
-        : "Confirmez-vous le rejet de cette demande ?",
+      message:
+        action === "Approve"
+          ? "Confirmez-vous l’approbation de cette demande ?"
+          : "Confirmez-vous le rejet de cette demande ?",
       okText: action === "Approve" ? "Approuver" : "Rejeter",
       variant: action === "Approve" ? "primary" : "danger",
     });
@@ -81,8 +89,9 @@ export default function DirectorDashboard({ user, onLogout }) {
         requestId: id,
         action,
         comment: action === "Reject" ? comment : "",
+        actorUserId: user?.userId,         // IMPORTANT
       });
-      setRows(prev => prev.filter(r => r.leaveRequestId !== id));
+      setRows((prev) => prev.filter((r) => r.leaveRequestId !== id));
       setSelectedId(null);
       setComment("");
       toast.ok(action === "Approve" ? "Demande approuvée." : "Demande rejetée.");
@@ -105,8 +114,12 @@ export default function DirectorDashboard({ user, onLogout }) {
         <img src={logo} alt="logo" className="logo" />
         <ul>
           <li className="active">📊 Tableau de bord</li>
-          <li onClick={() => navigate("/settings")} style={{ cursor: "pointer" }}>⚙️ Paramètres</li>
-          <li onClick={onLogout} style={{ cursor: "pointer" }}>📦 Déconnexion</li>
+          <li onClick={() => navigate("/settings")} style={{ cursor: "pointer" }}>
+            ⚙️ Paramètres
+          </li>
+          <li onClick={onLogout} style={{ cursor: "pointer" }}>
+            📦 Déconnexion
+          </li>
         </ul>
         <footer className="footer">© 2025 – LeaveManager</footer>
       </aside>
@@ -121,7 +134,9 @@ export default function DirectorDashboard({ user, onLogout }) {
         </header>
 
         <h2>Bonjour {user?.fullName || "Directeur"} 👋</h2>
-        <p className="subtitle">Demandes en attente de <strong>validation Directeur</strong>.</p>
+        <p className="subtitle">
+          Demandes en attente de <strong>validation Directeur</strong>.
+        </p>
 
         <section className="stat-cards">
           <div className="card">🕒 En attente : <strong>{filtered.length}</strong></div>
@@ -136,7 +151,7 @@ export default function DirectorDashboard({ user, onLogout }) {
               className="search"
               placeholder="Rechercher (nom, type, statut)"
               value={filter}
-              onChange={e => setFilter(e.target.value)}
+              onChange={(e) => setFilter(e.target.value)}
             />
           </div>
 
@@ -164,22 +179,35 @@ export default function DirectorDashboard({ user, onLogout }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(r => (
+                  {filtered.map((r) => (
                     <tr key={r.leaveRequestId}>
                       <td>{r.employeeFullName}</td>
                       <td>{r.leaveType?.name}</td>
                       <td>{new Date(r.startDate).toLocaleDateString()}</td>
                       <td>{new Date(r.endDate).toLocaleDateString()}</td>
-                      <td>{r.requestedDays}{r.isHalfDay ? " (½)" : ""}</td>
+                      <td>
+                        {r.requestedDays}
+                        {r.isHalfDay ? " (½)" : ""}
+                      </td>
                       <td>{r.leaveType?.approvalFlow}</td>
                       <td>{r.currentStage}</td>
                       <td>
                         {r.proofFilePath ? (
-                          <button className="link" onClick={() => openProof(r.proofFilePath)}>Voir</button>
-                        ) : "—"}
+                          <button className="link" onClick={() => openProof(r.proofFilePath)}>
+                            Voir
+                          </button>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td>
-                        <button className="ghost" title="Télécharger PDF" onClick={() => downloadRequestPdf(r.leaveRequestId)}>📄</button>
+                        <button
+                          className="ghost"
+                          title="Télécharger PDF"
+                          onClick={() => downloadRequestPdf(r.leaveRequestId)}
+                        >
+                          📄
+                        </button>
                       </td>
                       <td className="actions">
                         {selectedId === r.leaveRequestId ? (
@@ -187,28 +215,40 @@ export default function DirectorDashboard({ user, onLogout }) {
                             <textarea
                               placeholder="Commentaire (obligatoire si rejet)"
                               value={comment}
-                              onChange={e => setComment(e.target.value)}
+                              onChange={(e) => setComment(e.target.value)}
                             />
                             <div className="btns">
                               <button
                                 disabled={actionBusy}
-                                onClick={() => handle("Approve", r.leaveRequestId)}>
+                                onClick={() => handle("Approve", r.leaveRequestId)}
+                              >
                                 ✅ Approuver
                               </button>
                               <button
                                 disabled={actionBusy || !comment.trim()}
-                                onClick={() => handle("Reject", r.leaveRequestId)}>
+                                onClick={() => handle("Reject", r.leaveRequestId)}
+                              >
                                 ❌ Rejeter
                               </button>
-                              <button className="ghost" onClick={() => { setSelectedId(null); setComment(""); }}>
+                              <button
+                                className="ghost"
+                                onClick={() => {
+                                  setSelectedId(null);
+                                  setComment("");
+                                }}
+                              >
                                 Annuler
                               </button>
                             </div>
                           </div>
                         ) : (
                           <>
-                            <button title="Approuver" onClick={() => handle("Approve", r.leaveRequestId)}>✅</button>
-                            <button title="Rejeter" onClick={() => setSelectedId(r.leaveRequestId)}>✍️</button>
+                            <button title="Approuver" onClick={() => handle("Approve", r.leaveRequestId)}>
+                              ✅
+                            </button>
+                            <button title="Rejeter" onClick={() => setSelectedId(r.leaveRequestId)}>
+                              ✍️
+                            </button>
                           </>
                         )}
                       </td>

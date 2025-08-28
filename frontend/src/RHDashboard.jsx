@@ -3,7 +3,13 @@ import "./RHDashboard.css";
 import logo from "./assets/logo.png";
 import userIcon from "./assets/User.png";
 import { useNavigate } from "react-router-dom";
-import { rhListRequests, rhStats, getApprovalHistory, actOnApproval, downloadRequestPdf } from "./admin/api";
+import {
+  rhListRequests,
+  rhStats,
+  getApprovalHistory,
+  actOnApproval,
+  downloadRequestPdf,
+} from "./admin/api";
 import { useConfirm } from "./ui/ConfirmProvider";
 import { useToast } from "./ui/ToastProvider";
 
@@ -28,11 +34,18 @@ const RHDashboard = ({ user, onLogout }) => {
   const [previewUrl, setPreviewUrl] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
+  // ————— Utilitaires d’accès champ (compat ancienne API)
+  const getName = (row) => row.name ?? row.employee ?? "";
+  const getRole = (row) => row.role ?? row.userRole ?? ""; // fallback si plus tard
+  const getHierarchy = (row) => row.hierarchy ?? row.hierarchyName ?? "";
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return list;
     return list.filter((r) =>
-      (r.employee || "").toLowerCase().includes(s) ||
+      (getName(r) || "").toLowerCase().includes(s) ||
+      (getRole(r) || "").toLowerCase().includes(s) ||
+      (getHierarchy(r) || "").toLowerCase().includes(s) ||
       (r.type || "").toLowerCase().includes(s) ||
       (r.status || "").toLowerCase().includes(s)
     );
@@ -40,7 +53,7 @@ const RHDashboard = ({ user, onLogout }) => {
 
   async function loadEverything() {
     const [l, st] = await Promise.all([rhListRequests(), rhStats()]);
-    setList(l || []);
+    setList(Array.isArray(l) ? l : []);
     setStats(st || { total: 0, valides: 0, refusees: 0, attente: 0 });
   }
   useEffect(() => { loadEverything().catch(console.error); }, []);
@@ -114,11 +127,10 @@ const RHDashboard = ({ user, onLogout }) => {
         <ul>
           <li>📄 Toutes les demandes</li>
           <li>📊 Statistiques</li>
-          <li onClick={() => navigate("/admin/users")} style={{cursor:"pointer"}}>👤 Utilisateurs</li>
-          <li onClick={() => navigate("/admin/holidays")} style={{cursor:"pointer"}}>📅 Jours fériés</li>
-          <li onClick={() => navigate("/admin/pdf-template")} style={{cursor:"pointer"}}>📄 Modèle PDF</li>{/* ➕ */}
-          <li onClick={() => navigate("/settings")} style={{cursor:"pointer"}}>⚙️ Paramètres</li>
-          <li onClick={onLogout} style={{ cursor: "pointer" }}>📦 Déconnexion</li>
+          {/* ➕ Bouton déconnexion */}
+    <li onClick={onLogout} style={{ cursor: "pointer" }}>
+      📦 Déconnexion
+    </li>
         </ul>
         <footer className="footer">© 2025 – LeaveManager</footer>
       </aside>
@@ -137,7 +149,7 @@ const RHDashboard = ({ user, onLogout }) => {
         <p>📊 Taux de validation : {pct}%</p>
 
         <div className="toolbar">
-          <input placeholder="Rechercher…" value={q} onChange={(e)=>setQ(e.target.value)} />
+          <input placeholder="Rechercher (nom, rôle, hiérarchie, type…)" value={q} onChange={(e)=>setQ(e.target.value)} />
           <button className="exporter-btn">📤 Exporter</button>
         </div>
 
@@ -145,7 +157,9 @@ const RHDashboard = ({ user, onLogout }) => {
         <table>
           <thead>
             <tr>
-              <th>Employé</th>
+              <th>Nom</th>
+              <th>Rôle</th>
+              <th>Hiérarchie</th>
               <th>Type</th>
               <th>Du</th>
               <th>Au</th>
@@ -157,7 +171,9 @@ const RHDashboard = ({ user, onLogout }) => {
           <tbody>
             {filtered.map((d) => (
               <tr key={d.leaveRequestId}>
-                <td>{d.employee}</td>
+                <td>{getName(d)}</td>
+                <td>{getRole(d) || "—"}</td>
+                <td>{getHierarchy(d) || "—"}</td>
                 <td>{d.type}</td>
                 <td>{new Date(d.startDate).toLocaleDateString()}</td>
                 <td>{new Date(d.endDate).toLocaleDateString()}</td>
@@ -227,7 +243,6 @@ const RHDashboard = ({ user, onLogout }) => {
                 <div className="actions">
                   <textarea placeholder="Commentaire (obligatoire si rejet)" value={comment} onChange={(e)=>setComment(e.target.value)} />
                   <div className="btns">
-                    {/* ➕ PDF */}
                     <button className="ghost" onClick={() => downloadRequestPdf(detail.request.leaveRequestId)}>📄 Télécharger PDF</button>
                     <button disabled={actionBusy} onClick={() => handleAction("Approve")}>✅ Approuver</button>
                     <button disabled={actionBusy || !comment.trim()} onClick={() => handleAction("Reject")}>❌ Rejeter</button>

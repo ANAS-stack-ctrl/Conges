@@ -132,12 +132,7 @@ function NewLeaveRequest({ user }) {
     const ok = await confirm({
       title: "Valider la demande",
       message:
-        `Êtes-vous sûr de vouloir valider cette demande ?\n\n` +
-        `Type : ${typeLabel}\n` +
-        `Du : ${startDate}  Au : ${endDate} ${includeEnd ? "(fin incluse)" : "(fin non incluse)"}\n` +
-        `Jours demandés : ${askedDays}\n` +
-        (isHalfDayValue ? `Période demi-journée : ${halfDayPeriod}\n` : "") +
-        (comment ? `Commentaire : ${comment}\n` : ""),
+      `Êtes-vous sûr de vouloir valider cette demande ?`,
       okText: "Valider",
       variant: "primary",
       cancelText: "Annuler",

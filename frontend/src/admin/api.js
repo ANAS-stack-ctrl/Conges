@@ -28,8 +28,6 @@ async function request(path, opts = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// HTTP helpers
-// ─────────────────────────────────────────────────────────────
 export function apiGet(path) {
   return request(path);
 }
@@ -105,14 +103,24 @@ export const setBalanceAllTypes = (userId, currentBalance) =>
 // ─────────────────────────────────────────────────────────────
 // Approvals (Manager / Director / RH)
 // ─────────────────────────────────────────────────────────────
+// ⬇️ MAJ : accepte { role, reviewerUserId } (et garde userId en alias)
 export function getPendingApprovals(arg) {
-  let role, userId;
-  if (typeof arg === "string") role = arg;
-  else if (arg && typeof arg === "object") ({ role, userId } = arg);
+  let role, reviewerUserId, userId, hierarchyId;
+  if (typeof arg === "string") {
+    role = arg;
+  } else if (arg && typeof arg === "object") {
+    ({ role, reviewerUserId, userId, hierarchyId } = arg);
+  }
 
   const qs = new URLSearchParams();
   if (role) qs.set("role", role);
-  if (userId) qs.set("userId", String(userId));
+  if (reviewerUserId) {
+    qs.set("reviewerUserId", String(reviewerUserId));
+  } else if (userId) {
+    // compat (ancien backend)
+    qs.set("userId", String(userId));
+  }
+  if (hierarchyId) qs.set("hierarchyId", String(hierarchyId));
 
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return apiGet(`/Approval/pending${suffix}`);
@@ -132,8 +140,8 @@ export function actOnApproval(payload) {
   const body = {
     action,
     comments: comment ?? comments ?? "",
-    actorUserId,
-    role,
+    actorUserId,   // IMPORTANT
+    role,          // optionnel
   };
 
   if (requestId) return apiPost(`/Approval/by-request/${requestId}/action`, body);
@@ -174,7 +182,7 @@ export function getRoleStats(role, date) {
 export const getApprovalHistory = (requestId) =>
   apiGet(`/Approval/history/${requestId}`);
 
-// ► Nouveau : téléchargement du PDF d’une demande
+// ► Téléchargement du PDF d’une demande
 export const downloadRequestPdf = (requestId, templateId) => {
   const qs = templateId ? `?templateId=${templateId}` : "";
   return fetch(`${API_BASE}/Export/leave-request/${requestId}${qs}`, {
@@ -220,7 +228,7 @@ export function getActiveBlackouts({ from, to, userId, leaveTypeId, departmentId
 }
 
 // ─────────────────────────────────────────────────────────────
-// ► Nouveau : Templates PDF (Admin)
+// Templates PDF (Admin)
 // ─────────────────────────────────────────────────────────────
 export const listPdfTemplates   = () => apiGet("/PdfTemplate");
 export const getPdfTemplate     = (id) => apiGet(`/PdfTemplate/${id}`);
@@ -228,5 +236,42 @@ export const createPdfTemplate  = (tpl) => apiPost("/PdfTemplate", tpl);
 export const updatePdfTemplate  = (id, tpl) => apiPut(`/PdfTemplate/${id}`, tpl);
 export const deletePdfTemplate  = (id) => apiDelete(`/PdfTemplate/${id}`);
 
+// ─────────────────────────────────────────────────────────────
+// Hierarchies (Equipes / Départements) — CRUD + membres
+// ─────────────────────────────────────────────────────────────
+export function listHierarchies() {
+  return apiGet("/Hierarchy");
+}
+export function createHierarchy(payload) {
+  // { name, code?, description? }
+  return apiPost("/Hierarchy", payload);
+}
+export function updateHierarchy(id, payload) {
+  return apiPut(`/Hierarchy/${id}`, payload);
+}
+export function deleteHierarchy(id) {
+  return apiDelete(`/Hierarchy/${id}`);
+}
+
+// Membres d'une hiérarchie
+export function getHierarchyMembers(id) {
+  return apiGet(`/Hierarchy/${id}/members`);
+}
+export function addHierarchyMember(id, payload) {
+  // { userId, role: "Employee" | "Manager" | "Director" | "RH" }
+  return apiPost(`/Hierarchy/${id}/members`, payload);
+}
+export function removeHierarchyMember(id, userId) {
+  return apiDelete(`/Hierarchy/${id}/members/${userId}`);
+}
+
+// ► Optionnel : candidats (utilisateurs non-membres)
+export function getHierarchyCandidates(id, role) {
+  const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+  return apiGet(`/Hierarchy/${id}/candidates${qs}`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // exports utilitaires
+// ─────────────────────────────────────────────────────────────
 export { API_BASE, FILE_BASE };

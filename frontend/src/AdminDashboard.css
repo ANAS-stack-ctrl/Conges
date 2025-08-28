@@ -76,6 +76,19 @@
   color: #333;
   box-shadow: 0 2px 5px rgba(0,0,0,0.04);
 }
+/* bouton mauve réutilisable */
+.btn-purple {
+  background: #7b44c3;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-purple:hover { filter: brightness(1.05); }
+.btn-purple:active { transform: translateY(1px); }
+
 
 /* Actions rapides */
 .actions-rapides h3 { margin: 16px 0 10px; }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace CongesApi.Controllers
 {
@@ -14,19 +15,77 @@ namespace CongesApi.Controllers
         private readonly ApplicationDbContext _context;
         public UserController(ApplicationDbContext context) => _context = context;
 
-        // The fixed bcrypt hash for password "admin"
         private const string DEFAULT_ADMIN_HASH =
             "$2a$11$SkqIVD58mHMmggKoibrF0eHaRqtOjRNvou0h1UZQeuSfodQ9Rt0C6";
 
-        // --------------------------------------------------------------------
-        // DTOs
-        // --------------------------------------------------------------------
+        private static readonly HashSet<string> AllowedRoles = new()
+        { "Employee", "Manager", "Director", "RH", "Admin" };
+
+        private async Task<string?> GetOrCreateRoleAsync(string roleRaw)
+        {
+            var norm = (roleRaw ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(norm)) return null;
+
+            var exist = await _context.UserRoles
+                .Where(r => r.Role.ToLower() == norm.ToLower())
+                .Select(r => r.Role)
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrEmpty(exist))
+                return exist;
+
+            var match = AllowedRoles.FirstOrDefault(r => r.ToLower() == norm.ToLower());
+            if (match == null) return null;
+
+            _context.UserRoles.Add(new UserRole { Role = match });
+            await _context.SaveChangesAsync();
+            return match;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Parse hiérarchie : accepte 123, "123", "H1"/"H2", ou Nom exact
+        // ─────────────────────────────────────────────────────────────
+        private async Task<int?> ParseHierarchyAsync(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+
+            // Essayer un entier direct
+            if (int.TryParse(raw, out var idNum))
+            {
+                var ok = await _context.Hierarchies.AsNoTracking()
+                    .AnyAsync(h => h.HierarchyId == idNum);
+                return ok ? idNum : null;
+            }
+
+            var val = raw.Trim();
+
+            // Essayer par Code exact (H1, H2, …)
+            var byCode = await _context.Hierarchies.AsNoTracking()
+                .Where(h => h.Code != null && h.Code.ToLower() == val.ToLower())
+                .Select(h => h.HierarchyId)
+                .FirstOrDefaultAsync();
+            if (byCode != 0) return byCode;
+
+            // Essayer par Nom exact
+            var byName = await _context.Hierarchies.AsNoTracking()
+                .Where(h => h.Name.ToLower() == val.ToLower())
+                .Select(h => h.HierarchyId)
+                .FirstOrDefaultAsync();
+            if (byName != 0) return byName;
+
+            return null;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // DTOs (HierarchyId sous forme de string tolérante)
+        // ─────────────────────────────────────────────────────────────
         public class CreateUserDto
         {
             public string FirstName { get; set; } = "";
             public string LastName { get; set; } = "";
             public string Email { get; set; } = "";
-            public string Role { get; set; } = "Employee"; // default
+            public string Role { get; set; } = "Employee";
+            public string? HierarchyId { get; set; }   // ← peut être "2", "H1", "H2", "Equipe A"…
         }
 
         public class UpdateUserDto
@@ -34,18 +93,15 @@ namespace CongesApi.Controllers
             public string FirstName { get; set; } = "";
             public string LastName { get; set; } = "";
             public string Email { get; set; } = "";
-            public string PhoneNumber { get; set; } = ""; // optional
-            public string NationalID { get; set; } = "";  // optional
+            public string PhoneNumber { get; set; } = "";
+            public string NationalID { get; set; } = "";
+            public string? HierarchyId { get; set; }   // ← idem (string tolérante)
+            public string? Role { get; set; }
         }
 
-        public class ChangeRoleDto
-        {
-            public string Role { get; set; } = "";
-        }
+        public class ChangeRoleDto { public string Role { get; set; } = ""; }
 
-        // --------------------------------------------------------------------
-        // GET: api/User  → list (null-safe)
-        // --------------------------------------------------------------------
+        // GET list
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -59,6 +115,7 @@ namespace CongesApi.Controllers
                     u.LastName,
                     u.Email,
                     Role = u.Role,
+                    u.HierarchyId,
                     PhoneNumber = u.PhoneNumber ?? string.Empty,
                     NationalID = u.NationalID ?? string.Empty,
                     u.IsActive
@@ -68,9 +125,7 @@ namespace CongesApi.Controllers
             return Ok(users);
         }
 
-        // --------------------------------------------------------------------
-        // GET: api/User/{id}  → details (null-safe)
-        // --------------------------------------------------------------------
+        // GET by id
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -85,6 +140,7 @@ namespace CongesApi.Controllers
                     u.LastName,
                     u.Email,
                     Role = u.Role,
+                    u.HierarchyId,
                     PhoneNumber = u.PhoneNumber ?? string.Empty,
                     NationalID = u.NationalID ?? string.Empty,
                     u.IsActive
@@ -95,13 +151,10 @@ namespace CongesApi.Controllers
             return Ok(user);
         }
 
-        // --------------------------------------------------------------------
-        // POST: api/User  → create (ALWAYS sets the same password hash)
-        // --------------------------------------------------------------------
+        // POST create
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
-            // normalize email & basic checks
             var emailNorm = (dto.Email ?? string.Empty).Trim().ToLower();
             if (string.IsNullOrWhiteSpace(emailNorm))
                 return BadRequest("Email requis.");
@@ -111,31 +164,51 @@ namespace CongesApi.Controllers
                 .AnyAsync(u => u.Email.ToLower() == emailNorm);
             if (exists) return BadRequest("Un utilisateur avec cet email existe déjà.");
 
-            // role validation (if you maintain a UserRoles table)
-            var roleToSet = string.IsNullOrWhiteSpace(dto.Role) ? "Employee" : dto.Role.Trim();
-            var roleOk = await _context.UserRoles.AsNoTracking().AnyAsync(r => r.Role == roleToSet);
-            if (!roleOk)
+            var roleCanon = await GetOrCreateRoleAsync(dto.Role ?? "Employee");
+            if (string.IsNullOrEmpty(roleCanon))
                 return BadRequest("Rôle invalide.");
+
+            int? hierarchyId = null;
+            if (!string.IsNullOrWhiteSpace(dto.HierarchyId))
+            {
+                hierarchyId = await ParseHierarchyAsync(dto.HierarchyId);
+                if (hierarchyId == null) return BadRequest("Hiérarchie invalide.");
+            }
 
             var user = new User
             {
-                FirstName = dto.FirstName?.Trim(),
-                LastName = dto.LastName?.Trim(),
-                Email = (dto.Email ?? string.Empty).Trim(),
-                Role = roleToSet,
+                FirstName = (dto.FirstName ?? "").Trim(),
+                LastName = (dto.LastName ?? "").Trim(),
+                Email = (dto.Email ?? "").Trim(),
+                Role = roleCanon,
                 IsActive = true,
-                PasswordHash = DEFAULT_ADMIN_HASH    // <<< fixed hash for all new users
+                PasswordHash = DEFAULT_ADMIN_HASH,
+                HierarchyId = hierarchyId
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Utilisateur créé", user.UserId });
+            if (hierarchyId.HasValue)
+            {
+                var already = await _context.HierarchyMembers
+                    .AnyAsync(m => m.UserId == user.UserId);
+                if (!already)
+                {
+                    _context.HierarchyMembers.Add(new HierarchyMember
+                    {
+                        HierarchyId = hierarchyId.Value,
+                        UserId = user.UserId,
+                        Role = roleCanon
+                    });
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return Ok(new { message = "Utilisateur créé", userId = user.UserId });
         }
 
-        // --------------------------------------------------------------------
-        // PUT: api/User/{id}  → update basic info (null-safe)
-        // --------------------------------------------------------------------
+        // PUT update
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
         {
@@ -154,45 +227,76 @@ namespace CongesApi.Controllers
 
             if (!string.IsNullOrWhiteSpace(dto.FirstName))
                 user.FirstName = dto.FirstName.Trim();
-
             if (!string.IsNullOrWhiteSpace(dto.LastName))
                 user.LastName = dto.LastName.Trim();
-
             if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
                 user.PhoneNumber = dto.PhoneNumber.Trim();
-
             if (!string.IsNullOrWhiteSpace(dto.NationalID))
                 user.NationalID = dto.NationalID.Trim();
+
+            // Hiérarchie : accepte ID, "H1"/"H2", ou Nom
+            if (!string.IsNullOrWhiteSpace(dto.HierarchyId))
+            {
+                var parsed = await ParseHierarchyAsync(dto.HierarchyId);
+                if (parsed == null) return BadRequest("Hiérarchie invalide.");
+
+                user.HierarchyId = parsed.Value;
+
+                var link = await _context.HierarchyMembers
+                    .FirstOrDefaultAsync(m => m.UserId == id);
+                if (link == null)
+                {
+                    _context.HierarchyMembers.Add(new HierarchyMember
+                    {
+                        HierarchyId = parsed.Value,
+                        UserId = id,
+                        Role = user.Role
+                    });
+                }
+                else
+                {
+                    link.HierarchyId = parsed.Value;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Role))
+            {
+                var roleCanon = await GetOrCreateRoleAsync(dto.Role);
+                if (string.IsNullOrEmpty(roleCanon))
+                    return BadRequest("Rôle invalide.");
+
+                user.Role = roleCanon;
+
+                var link = await _context.HierarchyMembers
+                    .FirstOrDefaultAsync(m => m.UserId == id);
+                if (link != null) link.Role = roleCanon;
+            }
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "Utilisateur mis à jour" });
         }
 
-        // --------------------------------------------------------------------
-        // PUT: api/User/{id}/role  → change role
-        // --------------------------------------------------------------------
+        // PUT change role
         [HttpPut("{id:int}/role")]
         public async Task<IActionResult> ChangeRole(int id, [FromBody] ChangeRoleDto dto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
             if (user == null) return NotFound();
 
-            var roleToSet = (dto.Role ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(roleToSet))
-                return BadRequest("Rôle requis.");
+            var roleCanon = await GetOrCreateRoleAsync(dto.Role);
+            if (string.IsNullOrEmpty(roleCanon))
+                return BadRequest("Rôle invalide.");
 
-            var roleOk = await _context.UserRoles.AsNoTracking().AnyAsync(r => r.Role == roleToSet);
-            if (!roleOk) return BadRequest("Rôle invalide.");
+            user.Role = roleCanon;
 
-            user.Role = roleToSet;
+            var link = await _context.HierarchyMembers
+                .FirstOrDefaultAsync(m => m.UserId == id);
+            if (link != null) link.Role = roleCanon;
+
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Rôle mis à jour" });
         }
 
-        // --------------------------------------------------------------------
-        // (Optional) POST: api/User/{id}/reset-password  → back to default hash
-        // --------------------------------------------------------------------
         [HttpPost("{id:int}/reset-password")]
         public async Task<IActionResult> ResetPasswordToDefault(int id)
         {
@@ -204,9 +308,6 @@ namespace CongesApi.Controllers
             return Ok(new { message = "Mot de passe réinitialisé (hash par défaut)" });
         }
 
-        // --------------------------------------------------------------------
-        // DELETE: api/User/{id}
-        // --------------------------------------------------------------------
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {

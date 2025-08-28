@@ -36,5 +36,7 @@ namespace CongesApi.Model
 
         public ICollection<LeaveRequest> LeaveRequests { get; set; }
         public ICollection<Notification> Notifications { get; set; }
+        public int? HierarchyId { get; set; }
+        public Hierarchy? Hierarchy { get; set; }
     }
 }

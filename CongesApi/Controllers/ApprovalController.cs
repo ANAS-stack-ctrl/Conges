@@ -1,4 +1,7 @@
-﻿using CongesApi.Data;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using CongesApi.Data;
 using CongesApi.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,36 +9,70 @@ using Microsoft.EntityFrameworkCore;
 namespace CongesApi.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/Approval")]
 public class ApprovalController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     public ApprovalController(ApplicationDbContext db) => _db = db;
 
-    // ─────────────────────────────────────────────
-    // PENDING par rôle (on filtre ce que la personne doit voir)
-    // GET /api/Approval/pending?role=Manager&userId=12
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // PENDING visibles par un reviewer
+    // GET /api/Approval/pending?reviewerUserId=12  (alias: ?userId=12)
+    // role est optionnel (si absent, on prend celui du reviewer)
+    // ─────────────────────────────────────────────────────────────
     [HttpGet("pending")]
-    public async Task<IActionResult> GetPending([FromQuery] string? role, [FromQuery] int? userId)
+    public async Task<IActionResult> GetPending(
+        [FromQuery] int? reviewerUserId,
+        [FromQuery] int? userId,
+        [FromQuery] string? role)
     {
-        var effectiveRole = (role ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(effectiveRole) && userId.HasValue)
-            effectiveRole = await _db.Users.Where(u => u.UserId == userId.Value)
-                                           .Select(u => u.Role)
-                                           .FirstOrDefaultAsync();
+        // compat: userId ⇢ reviewerUserId
+        if (!reviewerUserId.HasValue && userId.HasValue)
+            reviewerUserId = userId;
 
-        if (string.IsNullOrWhiteSpace(effectiveRole))
-            return BadRequest("role manquant (Manager|Director|RH).");
+        if (!reviewerUserId.HasValue && string.IsNullOrWhiteSpace(role))
+            return BadRequest("reviewerUserId (ou userId) requis.");
 
-        var roleNorm = NormalizeRole(effectiveRole); // "manager" | "director" | "rh"
+        // Récupérer le reviewer pour connaître son rôle et sa hiérarchie
+        string reviewerRole = (role ?? "").Trim();
+        int? reviewerHierarchyId = null;
 
+        if (reviewerUserId.HasValue)
+        {
+            var u = await _db.Users.AsNoTracking()
+                .Where(x => x.UserId == reviewerUserId.Value)
+                .Select(x => new { x.Role, x.HierarchyId })
+                .FirstOrDefaultAsync();
+
+            if (u == null) return BadRequest("Reviewer inconnu.");
+            reviewerRole = string.IsNullOrWhiteSpace(reviewerRole) ? u.Role : reviewerRole;
+            reviewerHierarchyId = u.HierarchyId;
+        }
+
+        var roleNorm = NormalizeRole(reviewerRole); // "manager" | "director" | "rh"
+        if (string.IsNullOrWhiteSpace(roleNorm))
+            return Ok(Array.Empty<object>());
+
+        // Base: approbations PENDING pour ce niveau
         var baseQ = _db.Approvals
             .Include(a => a.LeaveRequest).ThenInclude(r => r.LeaveType)
             .Include(a => a.LeaveRequest).ThenInclude(r => r.User)
             .Where(a => a.Level.ToLower() == roleNorm && a.Status == "Pending");
 
-        // en série => seule l’étape active
+        // Filtrage par hiérarchie (Manager/Director uniquement)
+        if (reviewerHierarchyId.HasValue && (roleNorm == "manager" || roleNorm == "director"))
+        {
+            baseQ = baseQ.Where(a => a.LeaveRequest.HierarchyId == reviewerHierarchyId.Value);
+        }
+
+        // Exclure ses propres demandes
+        if (reviewerUserId.HasValue)
+        {
+            baseQ = baseQ.Where(a => a.LeaveRequest.UserId != reviewerUserId.Value
+                                   && a.LeaveRequest.CreatedBy != reviewerUserId.Value);
+        }
+
+        // Flow "Serial" : seule l'étape PENDING la plus basse
         var serialQ =
             from a in baseQ
             where a.LeaveRequest.LeaveType.ApprovalFlow == "Serial"
@@ -45,7 +82,7 @@ public class ApprovalController : ControllerBase
             where a.NextApprovalOrder == minOrder
             select a;
 
-        // en parallèle => toutes les pending pour ce rôle
+        // Flow "Parallel" : toutes les PENDING de ce rôle
         var parallelQ =
             from a in baseQ
             where a.LeaveRequest.LeaveType.ApprovalFlow == "Parallel"
@@ -65,6 +102,8 @@ public class ApprovalController : ControllerBase
                 currentStage = a.Level,
                 proofFilePath = a.LeaveRequest.ProofFilePath,
                 status = a.Status,
+                userId = a.LeaveRequest.UserId,
+                createdBy = a.LeaveRequest.CreatedBy,
                 leaveType = new
                 {
                     name = a.LeaveRequest.LeaveType.Name,
@@ -76,17 +115,18 @@ public class ApprovalController : ControllerBase
         return Ok(list);
     }
 
-    // ─────────────────────────────────────────────
-    // ACTIONS
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // ACTIONS (Approve/Reject)
+    // ─────────────────────────────────────────────────────────────
     public class ApprovalActionDto
     {
         public string Action { get; set; } = "";   // "Approve" | "Reject"
         public string? Comments { get; set; }
         public int? ActorUserId { get; set; }
-        public string? Role { get; set; }          // pour by-request
+        public string? Role { get; set; }          // optionnel (utilisé pour le filtre d’étape)
     }
 
+    // par ApprovalId (rare côté front)
     [HttpPost("{approvalId:int}/action")]
     public async Task<IActionResult> ActOnApproval(int approvalId, [FromBody] ApprovalActionDto dto)
     {
@@ -98,7 +138,7 @@ public class ApprovalController : ControllerBase
         return await ApplyDecision(ap, dto);
     }
 
-    // Utilisé par le front
+    // par LeaveRequestId (utilisé par le front)
     [HttpPost("by-request/{requestId:int}/action")]
     public async Task<IActionResult> ActOnRequest(int requestId, [FromBody] ApprovalActionDto dto)
     {
@@ -106,6 +146,19 @@ public class ApprovalController : ControllerBase
         var req = await _db.LeaveRequests.Include(r => r.LeaveType)
             .FirstOrDefaultAsync(r => r.LeaveRequestId == requestId);
         if (req == null) return NotFound("Demande introuvable.");
+
+        // Contrôle d’accès : Manager/Director doivent être dans la même hiérarchie
+        if (dto.ActorUserId.HasValue && (roleNorm == "manager" || roleNorm == "director"))
+        {
+            var actor = await _db.Users.AsNoTracking()
+                .Where(u => u.UserId == dto.ActorUserId.Value)
+                .Select(u => new { u.HierarchyId, u.Role })
+                .FirstOrDefaultAsync();
+
+            if (actor == null) return BadRequest("Acteur inconnu.");
+            if (actor.HierarchyId != req.HierarchyId)
+                return Forbid("Cette demande n'appartient pas à votre hiérarchie.");
+        }
 
         IQueryable<Approval> q = _db.Approvals
             .Include(a => a.LeaveRequest).ThenInclude(r => r.LeaveType)
@@ -128,9 +181,9 @@ public class ApprovalController : ControllerBase
         return await ApplyDecision(ap, dto);
     }
 
-    // ─────────────────────────────────────────────
-    // HISTORIQUE d’une demande
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // HISTORIQUE (utilisé par RH)
+    // ─────────────────────────────────────────────────────────────
     [HttpGet("history/{leaveRequestId:int}")]
     public async Task<IActionResult> GetHistory(int leaveRequestId)
     {
@@ -170,15 +223,16 @@ public class ApprovalController : ControllerBase
                 req.StartDate,
                 req.EndDate,
                 req.RequestedDays,
-                req.Status
+                req.Status,
+                req.ProofFilePath
             },
             approvals = items
         });
     }
 
-    // ─────────────────────────────────────────────
-    // RH : stats globales
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // RH : stats globales (pas de filtre hiérarchie)
+    // ─────────────────────────────────────────────────────────────
     [HttpGet("rh/stats")]
     public async Task<IActionResult> GetRhStats()
     {
@@ -194,141 +248,37 @@ public class ApprovalController : ControllerBase
         return Ok(new { total, valides, refusees, attente });
     }
 
-    // ─────────────────────────────────────────────
-    // logique commune + débit du solde à l’approbation finale
-    // ─────────────────────────────────────────────
-    private async Task<IActionResult> ApplyDecision(Approval ap, ApprovalActionDto dto)
+    // ─────────────────────────────────────────────────────────────
+    // Stats par rôle (Manager/Director/RH) — pour le dashboard
+    // GET /api/Approval/stats/role?role=Manager
+    // ─────────────────────────────────────────────────────────────
+    [HttpGet("stats/role")]
+    public async Task<IActionResult> GetRoleDailyStats([FromQuery] string role, [FromQuery] DateTime? date)
     {
-        if (string.IsNullOrWhiteSpace(dto.Action))
-            return BadRequest("Action requise (Approve|Reject).");
+        if (string.IsNullOrWhiteSpace(role))
+            return BadRequest("Paramètre 'role' requis (Manager | Director | RH).");
 
-        var act = dto.Action.Trim().ToLowerInvariant();
-        if (act != "approve" && act != "reject")
-            return BadRequest("Action invalide (Approve|Reject).");
+        var roleNorm = NormalizeRole(role);
+        var (startUtc, endUtc) = GetUtcDayRange(date);
 
-        ap.Status = (act == "approve") ? "Approved" : "Rejected";
-        ap.Comments = dto.Comments ?? "";
-        ap.ActionDate = DateTime.UtcNow;
-        if (dto.ActorUserId.HasValue) ap.ApprovedBy = dto.ActorUserId.Value;
+        var approvedToday = await _db.Approvals.CountAsync(a =>
+            a.Level.ToLower() == roleNorm &&
+            a.Status == "Approved" &&
+            a.ActionDate != null &&
+            a.ActionDate >= startUtc && a.ActionDate < endUtc);
 
-        await _db.SaveChangesAsync();
+        var rejectedToday = await _db.Approvals.CountAsync(a =>
+            a.Level.ToLower() == roleNorm &&
+            a.Status == "Rejected" &&
+            a.ActionDate != null &&
+            a.ActionDate >= startUtc && a.ActionDate < endUtc);
 
-        // Débloquer l’étape suivante si flow Serial et APPROVED
-        var req = await _db.LeaveRequests
-            .Include(r => r.LeaveType)
-            .FirstAsync(r => r.LeaveRequestId == ap.LeaveRequestId);
+        var pendingNow = await PendingForRoleQuery(roleNorm).CountAsync();
 
-        if (req.LeaveType.ApprovalFlow == "Serial" && ap.Status == "Approved")
-        {
-            var next = await _db.Approvals.FirstOrDefaultAsync(x =>
-                x.LeaveRequestId == ap.LeaveRequestId &&
-                x.Status == "Blocked" &&
-                x.NextApprovalOrder == ap.NextApprovalOrder + 1);
-
-            if (next != null)
-            {
-                next.Status = "Pending";
-                await _db.SaveChangesAsync();
-            }
-        }
-
-        // Statut global (FR) de la demande
-        var approvals = await _db.Approvals
-            .Where(x => x.LeaveRequestId == ap.LeaveRequestId)
-            .ToListAsync();
-
-        var anyRejected = approvals.Any(x => x.Status == "Rejected");
-        var allApproved = approvals.All(x => x.Status == "Approved");
-
-        if (anyRejected)
-        {
-            req.Status = "Refusée";
-            req.CurrentStage = "Rejected";
-        }
-        else if (allApproved)
-        {
-            req.Status = "Approuvée";
-            req.CurrentStage = "Approved";
-
-            // ─── Débit du solde (idempotent) ───
-            // On ne débite qu'une seule fois par LeaveRequest.
-            bool alreadyDebited = await _db.LeaveBalanceMovements
-                .AnyAsync(m => m.LeaveRequestId == req.LeaveRequestId && m.Reason == "DEBIT_APPROVAL");
-
-            if (!alreadyDebited)
-            {
-                var balance = await _db.LeaveBalances
-                    .FirstOrDefaultAsync(b => b.UserId == req.UserId && b.LeaveTypeId == req.LeaveTypeId);
-
-                if (balance != null)
-                {
-                    decimal qty = req.IsHalfDay ? 0.5m : (decimal)req.ActualDays;
-                    if (qty > 0)
-                    {
-                        balance.CurrentBalance -= qty;
-
-                        _db.LeaveBalanceMovements.Add(new LeaveBalanceMovement
-                        {
-                            UserId = req.UserId,
-                            LeaveTypeId = req.LeaveTypeId,
-                            LeaveRequestId = req.LeaveRequestId,
-                            CreatedAt = DateTime.UtcNow,
-                            Quantity = -qty,                 // négatif = débit
-                            Reason = "DEBIT_APPROVAL"
-                        });
-
-                        await _db.SaveChangesAsync();
-                    }
-                }
-            }
-        }
-        else
-        {
-            req.Status = "En attente";
-            if (req.LeaveType.ApprovalFlow == "Serial")
-            {
-                var nextLevel = await _db.Approvals
-                    .Where(x => x.LeaveRequestId == req.LeaveRequestId && x.Status == "Pending")
-                    .OrderBy(x => x.NextApprovalOrder)
-                    .Select(x => x.Level)
-                    .FirstOrDefaultAsync();
-                req.CurrentStage = nextLevel ?? "Pending";
-            }
-            else
-            {
-                req.CurrentStage = "Parallel";
-            }
-        }
-
-        await _db.SaveChangesAsync();
-
-        // payload utile au front
-        return Ok(new
-        {
-            message = "Action enregistrée.",
-            action = ap.Status,                 // "Approved" | "Rejected"
-            actorUserId = ap.ApprovedBy,
-            actorRole = ap.Level,
-            actionDate = ap.ActionDate,
-            requestStatus = req.Status          // "En attente" | "Approuvée" | "Refusée"
-        });
+        return Ok(new { approvedToday, rejectedToday, pendingNow });
     }
 
-    private static string NormalizeRole(string role)
-    {
-        var r = (role ?? "").Trim().ToLowerInvariant();
-        return r switch
-        {
-            "human resources" or "ressources humaines" or "hr" or "rh" => "rh",
-            "manager" or "line manager" => "manager",
-            "director" or "directeur" => "director",
-            _ => r
-        };
-    }
-
-    // ─────────────────────────────────────────────
-    // Helpers stats rôle/jour (pour tuiles du front)
-    // ─────────────────────────────────────────────
+    // Helpers pour les stats
     private static (DateTime startUtc, DateTime endUtc) GetUtcDayRange(DateTime? date)
     {
         var d = (date?.Date ?? DateTime.UtcNow.Date);
@@ -360,29 +310,131 @@ public class ApprovalController : ControllerBase
         return serialQ.Union(parallelQ);
     }
 
-    [HttpGet("stats/role")]
-    public async Task<IActionResult> GetRoleDailyStats([FromQuery] string role, [FromQuery] DateTime? date)
+    // ─────────────────────────────────────────────────────────────
+    // Logique de décision + débit du solde à l’approbation finale
+    // ─────────────────────────────────────────────────────────────
+    private async Task<IActionResult> ApplyDecision(Approval ap, ApprovalActionDto dto)
     {
-        if (string.IsNullOrWhiteSpace(role))
-            return BadRequest("Paramètre 'role' requis (Manager | Director | RH).");
+        if (string.IsNullOrWhiteSpace(dto.Action))
+            return BadRequest("Action requise (Approve|Reject).");
 
-        var roleNorm = NormalizeRole(role);
-        var (startUtc, endUtc) = GetUtcDayRange(date);
+        var act = dto.Action.Trim().ToLowerInvariant();
+        if (act != "approve" && act != "reject")
+            return BadRequest("Action invalide (Approve|Reject).");
 
-        var approvedToday = await _db.Approvals.CountAsync(a =>
-            a.Level.ToLower() == roleNorm &&
-            a.Status == "Approved" &&
-            a.ActionDate != null &&
-            a.ActionDate >= startUtc && a.ActionDate < endUtc);
+        ap.Status = (act == "approve") ? "Approved" : "Rejected";
+        ap.Comments = dto.Comments ?? "";
+        ap.ActionDate = DateTime.UtcNow;
+        if (dto.ActorUserId.HasValue) ap.ApprovedBy = dto.ActorUserId.Value;
 
-        var rejectedToday = await _db.Approvals.CountAsync(a =>
-            a.Level.ToLower() == roleNorm &&
-            a.Status == "Rejected" &&
-            a.ActionDate != null &&
-            a.ActionDate >= startUtc && a.ActionDate < endUtc);
+        await _db.SaveChangesAsync();
 
-        var pendingNow = await PendingForRoleQuery(roleNorm).CountAsync();
+        var req = await _db.LeaveRequests
+            .Include(r => r.LeaveType)
+            .FirstAsync(r => r.LeaveRequestId == ap.LeaveRequestId);
 
-        return Ok(new { approvedToday, rejectedToday, pendingNow });
+        if (req.LeaveType.ApprovalFlow == "Serial" && ap.Status == "Approved")
+        {
+            var next = await _db.Approvals.FirstOrDefaultAsync(x =>
+                x.LeaveRequestId == ap.LeaveRequestId &&
+                x.Status == "Blocked" &&
+                x.NextApprovalOrder == ap.NextApprovalOrder + 1);
+
+            if (next != null)
+            {
+                next.Status = "Pending";
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        var approvals = await _db.Approvals
+            .Where(x => x.LeaveRequestId == ap.LeaveRequestId)
+            .ToListAsync();
+
+        var anyRejected = approvals.Any(x => x.Status == "Rejected");
+        var allApproved = approvals.All(x => x.Status == "Approved");
+
+        if (anyRejected)
+        {
+            req.Status = "Refusée";
+            req.CurrentStage = "Rejected";
+        }
+        else if (allApproved)
+        {
+            req.Status = "Approuvée";
+            req.CurrentStage = "Approved";
+
+            // Idempotent : débiter une seule fois
+            bool alreadyDebited = await _db.LeaveBalanceMovements
+                .AnyAsync(m => m.LeaveRequestId == req.LeaveRequestId && m.Reason == "DEBIT_APPROVAL");
+
+            if (!alreadyDebited)
+            {
+                var balance = await _db.LeaveBalances
+                    .FirstOrDefaultAsync(b => b.UserId == req.UserId && b.LeaveTypeId == req.LeaveTypeId);
+
+                if (balance != null)
+                {
+                    decimal qty = req.IsHalfDay ? 0.5m : (decimal)req.ActualDays;
+                    if (qty > 0)
+                    {
+                        balance.CurrentBalance -= qty;
+
+                        _db.LeaveBalanceMovements.Add(new LeaveBalanceMovement
+                        {
+                            UserId = req.UserId,
+                            LeaveTypeId = req.LeaveTypeId,
+                            LeaveRequestId = req.LeaveRequestId,
+                            CreatedAt = DateTime.UtcNow,
+                            Quantity = -qty,
+                            Reason = "DEBIT_APPROVAL"
+                        });
+
+                        await _db.SaveChangesAsync();
+                    }
+                }
+            }
+        }
+        else
+        {
+            req.Status = "En attente";
+            if (req.LeaveType.ApprovalFlow == "Serial")
+            {
+                var nextLevel = await _db.Approvals
+                    .Where(x => x.LeaveRequestId == req.LeaveRequestId && x.Status == "Pending")
+                    .OrderBy(x => x.NextApprovalOrder)
+                    .Select(x => x.Level)
+                    .FirstOrDefaultAsync();
+                req.CurrentStage = nextLevel ?? "Pending";
+            }
+            else
+            {
+                req.CurrentStage = "Parallel";
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "Action enregistrée.",
+            action = ap.Status,                 // "Approved" | "Rejected"
+            actorUserId = ap.ApprovedBy,
+            actorRole = ap.Level,
+            actionDate = ap.ActionDate,
+            requestStatus = req.Status
+        });
+    }
+
+    private static string NormalizeRole(string role)
+    {
+        var r = (role ?? "").Trim().ToLowerInvariant();
+        return r switch
+        {
+            "human resources" or "ressources humaines" or "hr" or "rh" => "rh",
+            "manager" or "line manager" => "manager",
+            "director" or "directeur" => "director",
+            _ => r
+        };
     }
 }

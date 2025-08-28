@@ -1,0 +1,45 @@
+.hier-page .hier-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.hier-page .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+.hier-grid{
+  display:grid;
+  grid-template-columns: 320px 1fr;
+  gap:12px;
+}
+.hier-list ul{ list-style:none; padding:0; margin:0; }
+.hier-list li{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px 12px;
+  border:1px solid #eee;
+  border-radius:12px;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+.hier-list li.active{ border-color:#8b5cf6; box-shadow:0 0 0 2px rgba(139,92,246,.15); }
+.hier-list .name{ font-weight:600; }
+.hier-list .meta{ display:flex; gap:6px; align-items:center; color:#666; font-size:12px; }
+.hier-list .code{ background:#f3f4f6; border-radius:8px; padding:2px 6px; }
+.hier-list .pill{ background:#eef2ff; color:#4f46e5; border-radius:999px; padding:2px 8px; }
+.hier-list .row-actions{ display:flex; gap:6px; }
+
+.hier-details .members-head{
+  display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
+}
+.role-groups{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:8px;
+  margin-top:12px;
+}
+.role-block{ border:1px dashed #e5e7eb; border-radius:12px; padding:8px; }
+.role-block h4{ margin:0 0 6px 0; }
+.role-block .muted{ color:#999; }

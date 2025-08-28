@@ -44,5 +44,8 @@ namespace CongesApi.Model
         public User User { get; set; }
 
         public ICollection<Approval> Approvals { get; set; } = new List<Approval>();
+        public int? HierarchyId { get; set; }
+        public Hierarchy? Hierarchy { get; set; }
+
     }
 }

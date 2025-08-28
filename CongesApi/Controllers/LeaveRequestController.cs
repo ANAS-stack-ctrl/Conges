@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CongesApi.Data;
 using CongesApi.DTOs;
 using CongesApi.Model;
+using CongesApi.Services; // ApprovalRouter
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -21,14 +22,16 @@ public class LeaveRequestController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly ApprovalRouter _router;
 
-    public LeaveRequestController(ApplicationDbContext db, IWebHostEnvironment env)
+    public LeaveRequestController(ApplicationDbContext db, IWebHostEnvironment env, ApprovalRouter router)
     {
         _db = db;
         _env = env;
+        _router = router;
     }
 
-    // ─────────────── Validation fichier: PNG/PDF uniquement (extension + signature)
+    // ───────── Fichiers justificatifs (PNG / PDF)
     private static readonly HashSet<string> AllowedProofExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".png", ".pdf" };
 
@@ -43,39 +46,25 @@ public class LeaveRequestController : ControllerBase
             byte[] header = new byte[Math.Min(8, file.Length)];
             int read = await s.ReadAsync(header, 0, header.Length);
 
-            // PDF: "%PDF-" => 25 50 44 46 2D
+            // PDF
             if (ext == ".pdf")
-            {
-                if (read >= 5 &&
-                    header[0] == 0x25 && header[1] == 0x50 &&
-                    header[2] == 0x44 && header[3] == 0x46 && header[4] == 0x2D)
-                    return true;
+                return read >= 5 &&
+                       header[0] == 0x25 && header[1] == 0x50 &&
+                       header[2] == 0x44 && header[3] == 0x46 && header[4] == 0x2D;
 
-                return false;
-            }
-
-            // PNG: 89 50 4E 47 0D 0A 1A 0A
+            // PNG
             if (ext == ".png")
-            {
-                if (read >= 8 &&
-                    header[0] == 0x89 && header[1] == 0x50 &&
-                    header[2] == 0x4E && header[3] == 0x47 &&
-                    header[4] == 0x0D && header[5] == 0x0A &&
-                    header[6] == 0x1A && header[7] == 0x0A)
-                    return true;
-
-                return false;
-            }
+                return read >= 8 &&
+                       header[0] == 0x89 && header[1] == 0x50 &&
+                       header[2] == 0x4E && header[3] == 0x47 &&
+                       header[4] == 0x0D && header[5] == 0x0A &&
+                       header[6] == 0x1A && header[7] == 0x0A;
         }
-        catch
-        {
-            return false;
-        }
+        catch { /* ignore */ }
 
         return false;
     }
 
-    // ─────────────── helpers fichiers
     private static string SanitizeFileName(string name)
     {
         foreach (var c in Path.GetInvalidFileNameChars())
@@ -92,7 +81,6 @@ public class LeaveRequestController : ControllerBase
         return webRoot;
     }
 
-    // ─────────────── helpers règles
     private static bool RangesOverlap(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd)
         => aStart.Date <= bEnd.Date && bStart.Date <= aEnd.Date;
 
@@ -120,7 +108,7 @@ public class LeaveRequestController : ControllerBase
             .ToListAsync();
     }
 
-    // ─────────────── types (pour le form employé/manager)
+    // ───────── Types pour le formulaire
     [HttpGet("leave-types")]
     public async Task<IActionResult> GetLeaveTypes()
     {
@@ -138,7 +126,8 @@ public class LeaveRequestController : ControllerBase
         return Ok(types);
     }
 
-    // ─────────────── RH list + stats
+    // ───────── RH admin list (+ filtre optionnel par hiérarchie)
+    // LeaveRequestController.cs  (extrait complet de la méthode)
     [HttpGet("admin/requests")]
     public async Task<IActionResult> GetAllRequestsForRh(
         [FromQuery] string? status, [FromQuery] int? typeId,
@@ -154,23 +143,33 @@ public class LeaveRequestController : ControllerBase
         if (from.HasValue) q = q.Where(r => r.StartDate >= from.Value);
         if (to.HasValue) q = q.Where(r => r.EndDate <= to.Value);
 
+        // Si tu as une table Hierarchies, on projette le nom via un sous-select.
         var data = await q.OrderByDescending(r => r.CreatedAt)
             .Select(r => new
             {
                 r.LeaveRequestId,
-                employee = r.User.FirstName + " " + r.User.LastName,
+                // ← Nom (ancien 'employee')
+                name = r.User.FirstName + " " + r.User.LastName,
+                // ← Type libellé inchangé
                 type = r.LeaveType.Name,
                 startDate = r.StartDate,
                 endDate = r.EndDate,
                 requestedDays = r.RequestedDays,
                 status = r.Status,
                 employeeComments = r.EmployeeComments,
-                proofFilePath = r.ProofFilePath
+                proofFilePath = r.ProofFilePath,
+                // NOUVEAU
+                role = r.User.Role, // "Employee" | "Manager" | "Director" | "RH"
+                hierarchy = _db.Hierarchies
+                    .Where(h => h.HierarchyId == r.HierarchyId)
+                    .Select(h => h.Name)
+                    .FirstOrDefault() ?? ""  // si null
             })
             .ToListAsync();
 
         return Ok(data);
     }
+
 
     [HttpGet("admin/stats")]
     public async Task<IActionResult> GetRhStats([FromQuery] DateTime? from, [FromQuery] DateTime? to)
@@ -187,7 +186,7 @@ public class LeaveRequestController : ControllerBase
         return Ok(new { total, valides, refusees, attente });
     }
 
-    // ─────────────── CRUD basique
+    // ───────── CRUD simple
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -210,23 +209,63 @@ public class LeaveRequestController : ControllerBase
         return item == null ? NotFound() : Ok(item);
     }
 
-    // ─────────────── CREATE (Blackouts d’abord, pas de solde global)
+    // ───────── Liste “à valider” par approbateur (filtre hiérarchie pour Manager, Director et RH)
+    [HttpGet("approvals/pending")]
+    public async Task<IActionResult> GetPendingApprovals([FromQuery] int approverUserId)
+    {
+        var approver = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == approverUserId);
+        if (approver == null) return BadRequest("Approver invalide.");
+
+        IQueryable<LeaveRequest> q = _db.LeaveRequests
+            .Include(r => r.User)
+            .Include(r => r.LeaveType)
+            .Where(r => r.Status == "En attente" && r.UserId != approverUserId);
+
+        if (approver.Role == "Manager")
+            q = q.Where(r => r.CurrentStage == "Manager" && r.HierarchyId == approver.HierarchyId);
+        else if (approver.Role == "Director")
+            q = q.Where(r => r.CurrentStage == "Director" && r.HierarchyId == approver.HierarchyId);
+        else if (approver.Role == "RH")
+            q = q.Where(r => r.CurrentStage == "RH" && r.HierarchyId == approver.HierarchyId); // ★ RH aussi limité à sa hiérarchie
+        else
+            return Ok(Array.Empty<object>());
+
+        var data = await q.OrderBy(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.LeaveRequestId,
+                employeeFullName = r.User.FirstName + " " + r.User.LastName,
+                leaveType = new { r.LeaveType.LeaveTypeId, name = r.LeaveType.Name, approvalFlow = r.LeaveType.ApprovalFlow },
+                r.StartDate,
+                r.EndDate,
+                r.RequestedDays,
+                r.IsHalfDay,
+                r.CurrentStage,
+                r.ProofFilePath,
+                r.HierarchyId
+            })
+            .ToListAsync();
+
+        return Ok(data);
+    }
+
+    // ───────── CREATE (pose la HierarchyId de l’employé)
     [HttpPost]
     public async Task<IActionResult> Create([FromForm] LeaveRequestDto dto)
     {
-        // 0) gardes simples sur les dates / jours
         if (dto.StartDate.Date > dto.EndDate.Date)
             return BadRequest("La date de début ne peut pas être après la date de fin.");
         if (!dto.IsHalfDay && dto.RequestedDays <= 0)
             return BadRequest("Le nombre de jours demandés doit être supérieur à 0.");
 
-        // 1) Type
+        var requester = await _db.Users.FirstOrDefaultAsync(u => u.UserId == dto.UserId);
+        if (requester == null) return BadRequest("Utilisateur inconnu.");
+
         var leaveType = await _db.LeaveTypes
             .Include(t => t.Policy)
             .FirstOrDefaultAsync(t => t.LeaveTypeId == dto.LeaveTypeId);
         if (leaveType == null) return BadRequest("Type de congé invalide.");
 
-        // 2) Blackouts
         var bl = await GetOverlappingBlackoutsAsync(dto.UserId, dto.LeaveTypeId, dto.StartDate, dto.EndDate);
         var blocking = bl.FirstOrDefault(b => b.EnforceMode == "Block");
         if (blocking != null)
@@ -238,11 +277,9 @@ public class LeaveRequestController : ControllerBase
         }
         bool requireDirector = bl.Any(b => b.EnforceMode == "RequireDirector");
 
-        // 3) chevauchement avec ses propres demandes
         if (await HasOverlappingRequestAsync(dto.UserId, dto.StartDate, dto.EndDate))
             return BadRequest("Vous avez déjà une demande En attente/Approuvée qui chevauche ces dates.");
 
-        // 4) règles de type + solde par type
         decimal requested = dto.IsHalfDay ? 0.5m : (decimal)dto.RequestedDays;
         if (leaveType.ConsecutiveDays > 0 && requested > leaveType.ConsecutiveDays)
             return BadRequest($"Le type '{leaveType.Name}' autorise au max {leaveType.ConsecutiveDays} jours consécutifs.");
@@ -254,7 +291,6 @@ public class LeaveRequestController : ControllerBase
         var debit = dto.IsHalfDay ? (dto.RequestedDays > 0 ? 0.5m : 0m) : (decimal)dto.RequestedDays;
         if (balance.CurrentBalance < debit) return BadRequest("Solde insuffisant.");
 
-        // 5) Justificatif (PNG/PDF)
         string? proofFilePath = null;
         if (leaveType.RequiresProof && dto.ProofFile == null)
             return BadRequest("Un justificatif est requis pour ce type.");
@@ -262,7 +298,7 @@ public class LeaveRequestController : ControllerBase
         if (dto.ProofFile is { Length: > 0 })
         {
             if (!await IsAllowedProofFileAsync(dto.ProofFile))
-                return BadRequest("Format de justificatif non valide. Seuls les fichiers PNG ou PDF sont autorisés.");
+                return BadRequest("Format de justificatif non valide. Seuls PNG/PDF sont autorisés.");
 
             var webRoot = EnsureWebRoot();
             var uploads = Path.Combine(webRoot, "uploads");
@@ -279,13 +315,10 @@ public class LeaveRequestController : ControllerBase
             proofFilePath = $"/uploads/{fileName}";
         }
 
-        // 6) Signature (optionnelle)
         string? signaturePath = null;
         if (!string.IsNullOrWhiteSpace(dto.EmployeeSignatureBase64))
         {
-            var user = await _db.Users.FindAsync(dto.UserId);
-            var baseName = $"{SanitizeFileName(user?.LastName ?? "User")}_{SanitizeFileName(user?.FirstName ?? dto.UserId.ToString())}_{DateTime.Now:yyyyMMdd_HHmmss}";
-
+            var baseName = $"{SanitizeFileName(requester.LastName ?? "User")}_{SanitizeFileName(requester.FirstName ?? dto.UserId.ToString())}_{DateTime.Now:yyyyMMdd_HHmmss}";
             var webRoot = EnsureWebRoot();
             var sigDir = Path.Combine(webRoot, "signatures");
             Directory.CreateDirectory(sigDir);
@@ -299,7 +332,6 @@ public class LeaveRequestController : ControllerBase
             signaturePath = $"/signatures/{fileName}";
         }
 
-        // 7) Création
         var lr = new LeaveRequest
         {
             StartDate = dto.StartDate,
@@ -320,13 +352,13 @@ public class LeaveRequestController : ControllerBase
             IsHalfDay = dto.IsHalfDay,
             HalfDayPeriod = dto.HalfDayPeriod ?? "FULL",
             ProofFilePath = proofFilePath,
-            RequiresDirectorOverride = requireDirector
+            RequiresDirectorOverride = requireDirector,
+            HierarchyId = requester.HierarchyId // ★ attache la demande à la hiérarchie
         };
 
         _db.LeaveRequests.Add(lr);
         await _db.SaveChangesAsync();
 
-        // 8) Plan d’approbation
         await CreateApprovalPlanAsync(lr.LeaveRequestId);
         await _db.SaveChangesAsync();
 
@@ -335,65 +367,51 @@ public class LeaveRequestController : ControllerBase
 
     private async Task CreateApprovalPlanAsync(int leaveRequestId)
     {
-        const string PENDING = "Pending";
-        const string BLOCKED = "Blocked";
-
         var req = await _db.LeaveRequests
             .Include(r => r.LeaveType).ThenInclude(t => t.Policy)
+            .Include(r => r.User)
             .FirstAsync(r => r.LeaveRequestId == leaveRequestId);
 
-        var flow = (req.LeaveType.ApprovalFlow ?? "Serial").Trim();
-        var steps = new List<string>();
+        // Demande déjà soldée ? (sécurité)
+        if (await _db.Approvals.AnyAsync(a => a.LeaveRequestId == leaveRequestId))
+            return;
 
-        if (req.LeaveType.Policy != null)
+        // Construire le plan avec un seul approbateur / niveau
+        var plan = await _router.BuildPlanAsync(req);
+
+        if (plan.Count == 0)
         {
-            if (req.LeaveType.Policy.RequiresManagerApproval) steps.Add("Manager");
-            if (req.LeaveType.Policy.RequiresDirectorApproval) steps.Add("Director");
-            if (req.LeaveType.Policy.RequiresHRApproval) steps.Add("RH");
+            // Aucun niveau : auto-approbation
+            req.Status = "Approuvée";
+            req.CurrentStage = "Approved";
+            await _db.SaveChangesAsync();
+            return;
         }
-        if (steps.Count == 0) steps.AddRange(new[] { "Manager", "RH" });
 
-        if (req.RequiresDirectorOverride && !steps.Contains("Director"))
+        // Enregistrer les approvals
+        foreach (var (level, approverId, order, status) in plan)
         {
-            steps.Insert(Math.min(1, steps.Count), "Director");
-        }
-
-        if (flow.Equals("Parallel", StringComparison.OrdinalIgnoreCase))
-        {
-            foreach (var level in steps)
+            _db.Approvals.Add(new Approval
             {
-                _db.Approvals.Add(new Approval
-                {
-                    LeaveRequestId = leaveRequestId,
-                    Level = level,
-                    Status = PENDING,
-                    NextApprovalOrder = 1,
-                    Comments = ""
-                });
-            }
-            req.Status = "En attente";
-            req.CurrentStage = "Parallel";
+                LeaveRequestId = req.LeaveRequestId,
+                Level = level,           // "Manager" | "Director" | "RH"
+                Status = status,          // Serial: 1er Pending, suivants Blocked ; Parallel: tous Pending
+                NextApprovalOrder = order,           // Serial: 1..n ; Parallel: 1
+                Comments = string.Empty,
+                // si tu as un champ ApproverUserId, renseigne-le ici
+                // ApproverUserId   = approverId
+            });
         }
-        else
-        {
-            var order = 1;
-            foreach (var level in steps)
-            {
-                _db.Approvals.Add(new Approval
-                {
-                    LeaveRequestId = leaveRequestId,
-                    Level = level,
-                    Status = (order == 1) ? PENDING : BLOCKED,
-                    NextApprovalOrder = order++,
-                    Comments = ""
-                });
-            }
-            req.Status = "En attente";
-            req.CurrentStage = steps.First();
-        }
+
+        // Poser l’étape courante
+        var firstPending = plan.FirstOrDefault(p => p.status == "Pending");
+        req.Status = "En attente";
+        req.CurrentStage = firstPending.level;
+
+        await _db.SaveChangesAsync();
     }
 
-    // ─────────────── Update / Delete / utilitaires
+
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, LeaveRequest leaveRequest)
     {
@@ -427,36 +445,26 @@ public class LeaveRequestController : ControllerBase
         var start = startDate.Date;
         var end = endDate.Date;
 
-        // 1) fériés non récurrents dans la plage
         var nonRecurring = _db.Holidays
             .Where(h => !h.IsRecurring && h.Date >= start && h.Date <= end)
             .Select(h => h.Date.Date)
             .ToList();
 
-        // 2) fériés récurrents (mois/jour)
         var recurring = _db.Holidays
             .Where(h => h.IsRecurring)
             .Select(h => new { h.Date.Month, h.Date.Day })
             .ToList();
 
-        // 3) on déroule les récurrents dans la plage et on construit l'ensemble complet
         var holidays = new HashSet<DateTime>(nonRecurring);
         for (var d = start; d <= end; d = d.AddDays(1))
-        {
             if (recurring.Any(r => r.Month == d.Month && r.Day == d.Day))
                 holidays.Add(d);
-        }
 
-        // 4) compter les jours ouvrés (lundi-vendredi) en excluant les fériés
         int workingDays = 0;
         for (var d = start; d <= end; d = d.AddDays(1))
-        {
             if (d.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday &&
                 !holidays.Contains(d))
-            {
                 workingDays++;
-            }
-        }
 
         return Ok(new { workingDays });
     }
@@ -478,6 +486,8 @@ public class LeaveRequestController : ControllerBase
                 r.EmployeeSignaturePath,
                 r.SignatureDate,
                 r.CreatedAt,
+                r.IsHalfDay,           // ⬅️ ajouté
+                r.HalfDayPeriod,       // ⬅️ ajouté  ("AM"/"PM" ou "MORNING"/"AFTERNOON")
                 LeaveType = new { r.LeaveType.LeaveTypeId, r.LeaveType.Name }
             })
             .ToListAsync();

@@ -15,7 +15,7 @@ import AdminAssignBalance from "./admin/AdminAssignBalance.jsx";
 import BlackoutAdmin from "./admin/BlackoutAdmin";
 import ManagerDashboard from "./ManagerDashboard";
 import DirectorDashboard from "./DirectorDashboard";
-
+import AdminHierarchies from "./admin/AdminHierarchies";
 // ➕ éditeur de modèle PDF (nouveau)
 import AdminPdfTemplate from "./admin/AdminPdfTemplate.jsx";
 
@@ -102,7 +102,7 @@ function App() {
               <Route path="/settings" element={<SettingsPage user={user} />} />
               <Route path="/new-request" element={<NewLeaveRequest user={user} />} />
               <Route path="/manager/new-request" element={<NewLeaveRequest user={user} />} />
-
+              <Route path="/admin/hierarchies" element={<AdminHierarchies />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>
           )}
