@@ -270,6 +270,17 @@ export function getHierarchyCandidates(id, role) {
   const qs = role ? `?role=${encodeURIComponent(role)}` : "";
   return apiGet(`/Hierarchy/${id}/candidates${qs}`);
 }
+// ─────────────────────────────────────────────────────────────
+// Manager ↔ Employee assignment
+// ─────────────────────────────────────────────────────────────
+export const listManagerAssignments = (hierarchyId) =>
+  apiGet(`/Hierarchy/${hierarchyId}/manager-assignments`);
+
+export const setManagerAssignment = (hierarchyId, employeeUserId, managerUserId) =>
+  apiPost(`/Hierarchy/${hierarchyId}/manager-assignments`, { employeeUserId, managerUserId });
+
+export const clearManagerAssignment = (hierarchyId, employeeUserId) =>
+  apiDelete(`/Hierarchy/${hierarchyId}/manager-assignments/${employeeUserId}`);
 
 // ─────────────────────────────────────────────────────────────
 // exports utilitaires

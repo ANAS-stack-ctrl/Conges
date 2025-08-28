@@ -65,6 +65,27 @@ public class ApprovalController : ControllerBase
             baseQ = baseQ.Where(a => a.LeaveRequest.HierarchyId == reviewerHierarchyId.Value);
         }
 
+        // ➕ Filtre “manager désigné” (seulement pour les managers)
+        if (roleNorm == "manager" && reviewerUserId.HasValue)
+        {
+            int rid = reviewerUserId.Value;
+
+            baseQ = baseQ.Where(a =>
+                // Cas 1 : pas d’affectation active -> visible par tous les managers de la hiérarchie
+                !_db.ManagerAssignments.Any(ma =>
+                    ma.Active
+                    && ma.HierarchyId == a.LeaveRequest.HierarchyId
+                    && ma.EmployeeUserId == a.LeaveRequest.UserId)
+
+                // Cas 2 : affectation active -> uniquement le manager désigné
+                || _db.ManagerAssignments.Any(ma =>
+                    ma.Active
+                    && ma.HierarchyId == a.LeaveRequest.HierarchyId
+                    && ma.EmployeeUserId == a.LeaveRequest.UserId
+                    && ma.ManagerUserId == rid)
+            );
+        }
+
         // Exclure ses propres demandes
         if (reviewerUserId.HasValue)
         {
@@ -158,6 +179,20 @@ public class ApprovalController : ControllerBase
             if (actor == null) return BadRequest("Acteur inconnu.");
             if (actor.HierarchyId != req.HierarchyId)
                 return Forbid("Cette demande n'appartient pas à votre hiérarchie.");
+
+            // ➕ Garde-fou : si un manager désigné existe, seul lui peut agir
+            if (roleNorm == "manager")
+            {
+                var assignment = await _db.ManagerAssignments.AsNoTracking()
+                    .Where(ma => ma.Active
+                              && ma.HierarchyId == req.HierarchyId
+                              && ma.EmployeeUserId == req.UserId)
+                    .Select(ma => ma.ManagerUserId)
+                    .FirstOrDefaultAsync();
+
+                if (assignment != 0 && assignment != dto.ActorUserId.Value)
+                    return Forbid("Vous n'êtes pas le manager désigné pour cet employé.");
+            }
         }
 
         IQueryable<Approval> q = _db.Approvals

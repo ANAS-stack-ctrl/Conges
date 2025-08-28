@@ -4,6 +4,7 @@ using CongesApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CongesApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250828093717_AddManagerAssignments")]
+    partial class AddManagerAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -722,13 +725,6 @@ namespace CongesApi.Migrations
 
                     b.HasKey("ManagerAssignmentId");
 
-                    b.HasIndex("EmployeeUserId");
-
-                    b.HasIndex("ManagerUserId");
-
-                    b.HasIndex("HierarchyId", "EmployeeUserId", "Active")
-                        .IsUnique();
-
                     b.ToTable("ManagerAssignments");
                 });
 
@@ -1122,33 +1118,6 @@ namespace CongesApi.Migrations
                     b.Navigation("ApprovalFlowType");
 
                     b.Navigation("Policy");
-                });
-
-            modelBuilder.Entity("CongesApi.Model.ManagerAssignment", b =>
-                {
-                    b.HasOne("CongesApi.Model.User", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CongesApi.Model.Hierarchy", "Hierarchy")
-                        .WithMany()
-                        .HasForeignKey("HierarchyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CongesApi.Model.User", "Manager")
-                        .WithMany()
-                        .HasForeignKey("ManagerUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Hierarchy");
-
-                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("CongesApi.Model.Notification", b =>

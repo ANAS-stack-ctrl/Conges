@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import "./DirectorDashboard.css";
 import logo from "./assets/logo.png";
 import usercircle from "./assets/User.png";
-import { getPendingApprovals, actOnApproval, getRoleStats, downloadRequestPdf } from "./admin/api";
+import {
+  getPendingApprovals,
+  actOnApproval,
+  getRoleStats,
+  downloadRequestPdf,
+  API_BASE,               // base API pour les appels d'affectation
+} from "./admin/api";
 import { useNavigate } from "react-router-dom";
 import { useConfirm } from "./ui/ConfirmProvider";
 import { useToast } from "./ui/ToastProvider";
@@ -24,6 +30,22 @@ export default function DirectorDashboard({ user, onLogout }) {
 
   const [todayApproved, setTodayApproved] = useState(0);
   const [todayRejected, setTodayRejected] = useState(0);
+
+  // ─────────────────────────────────────────────────────────────
+  // Bloc "Affectations manager"
+  // ─────────────────────────────────────────────────────────────
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [managers, setManagers] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [selectedManager, setSelectedManager] = useState("");
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [assignBusy, setAssignBusy] = useState(false);
+
+  // hiérarchie du directeur (résolue même si pas fournie dans props.user)
+  const [resolvedHierarchyId, setResolvedHierarchyId] = useState(
+    user?.hierarchyId ?? user?.HierarchyId ?? null
+  );
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return rows;
@@ -65,9 +87,166 @@ export default function DirectorDashboard({ user, onLogout }) {
     load();
   }, [load]);
 
+  // si la hiérarchie n'est pas connue côté front, on la récupère
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (resolvedHierarchyId || !user?.userId) return;
+      try {
+        const res = await fetch(`${API_BASE}/User/${user.userId}`);
+        if (!res.ok) throw new Error(await res.text());
+        const u = await res.json();
+        const hId = u?.hierarchyId ?? u?.HierarchyId ?? null;
+        if (alive) setResolvedHierarchyId(hId);
+      } catch (e) {
+        console.warn("Impossible de résoudre la hiérarchie du directeur:", e);
+      }
+    })();
+    return () => { alive = false; };
+  }, [resolvedHierarchyId, user?.userId]);
+
+  // charge managers/employés + affectations
+  async function loadMembersAndAssignments() {
+    if (!resolvedHierarchyId) return;
+    setMembersLoading(true);
+    try {
+      const resMembers = await fetch(`${API_BASE}/Hierarchy/${resolvedHierarchyId}/members`);
+      if (!resMembers.ok) throw new Error(await resMembers.text());
+      const members = await resMembers.json();
+
+      const emps = members
+        .filter((m) => (m.role || m.Role) === "Employee")
+        .map((m) => ({
+          userId: m.userId ?? m.UserId,
+          fullName: (m.fullName ?? m.FullName) || `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
+          email: m.email ?? m.Email,
+        }));
+
+      const mgrs = members
+        .filter((m) => (m.role || m.Role) === "Manager")
+        .map((m) => ({
+          userId: m.userId ?? m.UserId,
+          fullName: (m.fullName ?? m.FullName) || `${m.firstName ?? m.FirstName ?? ""} ${m.lastName ?? m.LastName ?? ""}`.trim(),
+          email: m.email ?? m.Email,
+        }));
+
+      setEmployees(emps);
+      setManagers(mgrs);
+
+      const resAssign = await fetch(`${API_BASE}/ManagerAssignment/hierarchy/${resolvedHierarchyId}`);
+      if (!resAssign.ok) throw new Error(await resAssign.text());
+      const list = await resAssign.json();
+
+      const norm = Array.isArray(list)
+        ? list.map((a) => ({
+            managerAssignmentId: a.managerAssignmentId ?? a.ManagerAssignmentId ?? a.id ?? a.Id,
+            employeeUserId: a.employeeUserId ?? a.EmployeeUserId,
+            employeeName:
+              a.employeeName ??
+              a.EmployeeName ??
+              `${a.employeeFirstName ?? ""} ${a.employeeLastName ?? ""}`.trim(),
+            managerUserId: a.managerUserId ?? a.ManagerUserId,
+            managerName:
+              a.managerName ??
+              a.ManagerName ??
+              `${a.managerFirstName ?? ""} ${a.managerLastName ?? ""}`.trim(),
+          }))
+        : [];
+      setAssignments(norm);
+    } catch (e) {
+      console.error(e);
+      toast.error("Impossible de charger les membres/affectations de la hiérarchie.");
+    } finally {
+      setMembersLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadMembersAndAssignments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedHierarchyId]);
+
+  // Affecter plusieurs employés → 1 manager
+  async function assignEmployeesToManager() {
+    if (!resolvedHierarchyId) {
+      toast.warn("Hiérarchie inconnue pour ce directeur.");
+      return;
+    }
+    const managerId = Number(selectedManager || 0);
+    if (!managerId) {
+      toast.warn("Sélectionnez un manager.");
+      return;
+    }
+    const empIds = selectedEmployees.map((id) => Number(id)).filter(Boolean);
+    if (empIds.length === 0) {
+      toast.warn("Sélectionnez au moins un employé.");
+      return;
+    }
+
+    const ask = await confirm({
+      title: "Affecter à un manager",
+      message: "Confirmez-vous l’affectation du/des employé(s) sélectionné(s) à ce manager ?",
+      okText: "Affecter",
+      variant: "primary",
+    });
+    if (!ask) return;
+
+    try {
+      setAssignBusy(true);
+      const res = await fetch(`${API_BASE}/ManagerAssignment/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hierarchyId: resolvedHierarchyId,
+          managerUserId: managerId,
+          employeeUserIds: empIds,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.ok("Affectation enregistrée ✅");
+      setSelectedEmployees([]);
+      await loadMembersAndAssignments();
+    } catch (e) {
+      console.error(e);
+      toast.error(
+        typeof e?.message === "string" && e.message.trim()
+          ? e.message
+          : "Échec de l’affectation."
+      );
+    } finally {
+      setAssignBusy(false);
+    }
+  }
+
+  async function removeAssignment(assignmentId) {
+    const ask = await confirm({
+      title: "Supprimer l’affectation",
+      message: "Voulez-vous retirer cette affectation ?",
+      okText: "Retirer",
+      variant: "danger",
+    });
+    if (!ask) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/ManagerAssignment/${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.ok("Affectation supprimée.");
+      await loadMembersAndAssignments();
+    } catch (e) {
+      console.error(e);
+      toast.error("Impossible de supprimer cette affectation.");
+    }
+  }
+
+  // Validation classique (inchangée)
   const openProof = (path) => {
     if (!path) return;
-    const url = path.startsWith("http") ? path : `${FILE_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = path.startsWith("http")
+      ? path
+      : `${FILE_BASE}${path.startsWith("/") ? path : `/${path}`}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -89,7 +268,7 @@ export default function DirectorDashboard({ user, onLogout }) {
         requestId: id,
         action,
         comment: action === "Reject" ? comment : "",
-        actorUserId: user?.userId,         // IMPORTANT
+        actorUserId: user?.userId,
       });
       setRows((prev) => prev.filter((r) => r.leaveRequestId !== id));
       setSelectedId(null);
@@ -144,6 +323,109 @@ export default function DirectorDashboard({ user, onLogout }) {
           <div className="card">❌ Rejetées aujourd’hui : <strong>{todayRejected}</strong></div>
         </section>
 
+        {/* Bloc d’affectation Manager ⇢ Employés */}
+        <section className="panel" style={{ marginBottom: 18 }}>
+          <h3>Affectations manager (ma hiérarchie)</h3>
+
+          {!resolvedHierarchyId && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <em>Vous n’êtes rattaché à aucune hiérarchie (ou elle n’a pas été trouvée).</em>
+            </div>
+          )}
+
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 2fr auto",
+                gap: 12,
+                alignItems: "end",
+              }}
+            >
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Manager
+                <select
+                  value={selectedManager}
+                  onChange={(e) => setSelectedManager(e.target.value)}
+                >
+                  <option value="">— Choisir un manager —</option>
+                  {managers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.fullName} ({m.email})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column" }}>
+                Employés (multi-sélection)
+                <select
+                  multiple
+                  size={Math.min(8, Math.max(4, employees.length))}
+                  value={selectedEmployees}
+                  onChange={(e) =>
+                    setSelectedEmployees(Array.from(e.target.selectedOptions, (o) => o.value))
+                  }
+                >
+                  {employees.map((u) => (
+                    <option key={u.userId} value={u.userId}>
+                      {u.fullName} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                onClick={assignEmployeesToManager}
+                disabled={assignBusy || !selectedManager || selectedEmployees.length === 0}
+                style={{ height: 40 }}
+              >
+                {assignBusy ? "Affectation…" : "Affecter"}
+              </button>
+            </div>
+
+            <p style={{ marginTop: 8, color: "#666" }}>
+              Astuce : maintenez <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> pour sélectionner plusieurs employés.
+            </p>
+          </div>
+
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Employé</th>
+                  <th>Manager assigné</th>
+                  <th style={{ width: 120 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {membersLoading ? (
+                  <tr><td colSpan={3}>Chargement…</td></tr>
+                ) : assignments.length === 0 ? (
+                  <tr><td colSpan={3} className="empty">Aucune affectation pour l’instant.</td></tr>
+                ) : (
+                  assignments.map((a) => (
+                    <tr key={a.managerAssignmentId}>
+                      <td>{a.employeeName}</td>
+                      <td>{a.managerName}</td>
+                      <td>
+                        <button
+                          className="ghost"
+                          onClick={() => removeAssignment(a.managerAssignmentId)}
+                          title="Retirer l’affectation"
+                        >
+                          Retirer
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Bloc À valider */}
         <section className="bloc">
           <div className="bloc-head">
             <h3>À valider</h3>

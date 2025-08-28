@@ -38,6 +38,7 @@ namespace CongesApi.Data
         public DbSet<HalfDayPeriodType> HalfDayPeriodTypes { get; set; }
         public DbSet<DocumentCategory> DocumentCategories { get; set; }
         public DbSet<PdfTemplate> PdfTemplates { get; set; } = default!;
+        public DbSet<ManagerAssignment> ManagerAssignments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -90,7 +91,6 @@ namespace CongesApi.Data
                 .WithMany()
                 .HasForeignKey(r => r.LeaveTypeId);
 
-            // LeaveRequest → Hierarchy (FK nullable)
             modelBuilder.Entity<LeaveRequest>()
                 .HasOne(r => r.Hierarchy)
                 .WithMany()
@@ -231,7 +231,7 @@ namespace CongesApi.Data
             modelBuilder.Entity<HierarchyApprovalPolicy>(e =>
             {
                 e.HasKey(p => p.PolicyId);
-                e.Property(p => p.PeerSelectionMode).HasMaxLength(20); // Any|All|Quota
+                e.Property(p => p.PeerSelectionMode).HasMaxLength(20);
                 e.HasOne(p => p.Hierarchy)
                  .WithOne(h => h.ApprovalPolicy)
                  .HasForeignKey<HierarchyApprovalPolicy>(p => p.HierarchyId)
@@ -243,7 +243,6 @@ namespace CongesApi.Data
             {
                 e.HasKey(d => d.DelegationId);
 
-                // IMPORTANT : éviter "multiple cascade paths" sur SQL Server
                 e.HasOne(d => d.FromUser)
                  .WithMany()
                  .HasForeignKey(d => d.FromUserId)
@@ -257,7 +256,32 @@ namespace CongesApi.Data
                 e.HasOne(d => d.Hierarchy)
                  .WithMany()
                  .HasForeignKey(d => d.HierarchyId)
-                 .OnDelete(DeleteBehavior.SetNull); // HierarchyId nullable
+                 .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ───────── ManagerAssignment (complet)
+            modelBuilder.Entity<ManagerAssignment>(entity =>
+            {
+                entity.HasKey(x => x.ManagerAssignmentId);
+
+                entity.HasOne(x => x.Hierarchy)
+                      .WithMany() // ou .WithMany(h => h.ManagerAssignments) si tu ajoutes la collection sur Hierarchy
+                      .HasForeignKey(x => x.HierarchyId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Employee)
+                      .WithMany()
+                      .HasForeignKey(x => x.EmployeeUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Manager)
+                      .WithMany()
+                      .HasForeignKey(x => x.ManagerUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                // Un employé ne peut avoir qu’une affectation Active par hiérarchie
+                entity.HasIndex(x => new { x.HierarchyId, x.EmployeeUserId, x.Active })
+                      .IsUnique();
             });
         }
     }
